@@ -115,6 +115,13 @@ onMounted(() => {
   }, { immediate: true })
 })
 
+// 登录守卫：未登录时跳转到登录页
+onShow(() => {
+  if (authStore.ready && !authStore.isLoggedIn) {
+    uni.reLaunch({ url: '/pages/login/login' })
+  }
+})
+
 function onAgentSelect(agentId) {
   agentStore.selectAgent(agentId)
   chatStore.messages = []

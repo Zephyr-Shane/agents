@@ -81,6 +81,13 @@ onMounted(() => {
   }, { immediate: true })
 })
 
+// 登录守卫：未登录时跳转到登录页
+onShow(() => {
+  if (auth.ready && !auth.isLoggedIn) {
+    uni.reLaunch({ url: '/pages/login/login' })
+  }
+})
+
 async function handleRelogin() {
   try {
     uni.showLoading({ title: '登录中...' })
