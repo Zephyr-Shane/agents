@@ -10,31 +10,16 @@
       </view>
     </view>
 
-    <!-- 未登录：基础操作 -->
-    <view class="card actions" v-if="!auth.isLoggedIn">
-      <view class="action-btn" @tap="handleRelogin">登录</view>
-      <view class="action-btn secondary" @tap="testConnection">测试后端连接</view>
-    </view>
-
-    <!-- 已登录但未绑定手机号：微信一键登录引导 -->
-    <view class="card quick-login-card" v-if="auth.isLoggedIn && !auth.hasPhone">
-      <view class="ql-header">
-        <text class="ql-icon">📱</text>
-        <view class="ql-text">
-          <text class="ql-title">绑定手机号</text>
-          <text class="ql-desc">一键授权，享受完整服务体验</text>
-        </view>
-      </view>
-      <button class="ql-btn" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber"
-        :disabled="phoneLogining" :loading="phoneLogining">
-        {{ phoneLogining ? '授权中...' : '微信一键登录' }}
-      </button>
-    </view>
-
-    <!-- 已登录 + 已绑定手机：关联信息 -->
-    <view class="card actions" v-if="auth.isLoggedIn && auth.hasPhone">
+    <!-- 已登录：操作按钮 -->
+    <view class="card actions" v-if="auth.isLoggedIn">
       <view class="action-btn" @tap="handleRelogin">刷新信息</view>
-      <view class="action-btn secondary" @tap="testConnection">测试连接</view>
+      <view class="action-btn danger" @tap="handleLogout">退出登录</view>
+    </view>
+
+    <!-- 未登录：不应看到此页，登录守卫会跳转 -->
+    <view class="card actions" v-else>
+      <view class="action-btn" @tap="goLogin">去登录</view>
+      <view class="action-btn secondary" @tap="testConnection">测试后端连接</view>
     </view>
 
     <!-- 统计 -->
@@ -57,7 +42,6 @@
     <view v-if="showDebug" class="debug-panel">
       <text>ready: {{ String(auth.ready) }}</text>
       <text>isLoggedIn: {{ String(auth.isLoggedIn) }}</text>
-      <text>hasPhone: {{ String(auth.hasPhone) }}</text>
       <text>token: {{ auth.token ? auth.token.substring(0, 20) + '...' : '空' }}</text>
       <text>服务器: {{ API_BASE_URL.replace('/api', '') }}</text>
     </view>
@@ -74,7 +58,6 @@ const auth = useAuthStore()
 const user = computed(() => auth.user)
 const avatarText = computed(() => (user.value?.nickname || '?')[0])
 const showDebug = ref(false)
-const phoneLogining = ref(false)
 
 onMounted(() => {
   watch(() => auth.ready, (val) => {
@@ -108,75 +91,22 @@ async function handleRelogin() {
   }
 }
 
-/**
- * 微信手机号一键登录回调
- * button[open-type="getPhoneNumber"] 触发
- */
-async function onGetPhoneNumber(e) {
-  // 用户拒绝授权
-  if (e.detail.errMsg && e.detail.errMsg !== 'getPhoneNumber:ok') {
-    uni.showToast({ title: '需要授权手机号才能使用完整功能', icon: 'none', duration: 2000 })
-    return
-  }
-
-  if (phoneLogining.value) return
-  phoneLogining.value = true
-
-  try {
-    uni.showLoading({ title: '登录中...' })
-
-    // 1. 获取 wx.login code
-    let loginCode
-    try {
-      const codeRes = await new Promise((resolve, reject) => {
-        uni.login({
-          success: (res) => res.code ? resolve(res.code) : reject(new Error('未获取到code')),
-          fail: (err) => {
-            // H5 环境 mock
-            if (err.errMsg && err.errMsg.includes('fail')) {
-              resolve('h5_mock_' + Date.now())
-            } else {
-              reject(err)
-            }
-          }
-        })
-      })
-      loginCode = codeRes
-    } catch (e) {
-      uni.hideLoading()
-      uni.showToast({ title: '获取登录凭证失败', icon: 'none', duration: 2000 })
-      return
+/** 退出登录：清除本地 token，跳回登录页 */
+function handleLogout() {
+  uni.showModal({
+    title: '提示',
+    content: '确定要退出登录吗？',
+    success: (res) => {
+      if (res.confirm) {
+        auth.logout()
+        uni.reLaunch({ url: '/pages/login/login' })
+      }
     }
+  })
+}
 
-    // 2. 从 e.detail 获取 phoneCode（新版 API）或 encryptedData（旧版兼容）
-    const phoneCode = e.detail.code
-    if (!phoneCode) {
-      uni.hideLoading()
-      uni.showToast({ title: '未获取到手机号凭证，请重试', icon: 'none', duration: 2000 })
-      return
-    }
-
-    // 3. 发送到后端一键登录
-    const ok = await auth.phoneLogin({
-      loginCode,
-      phoneCode,
-      nickname: user.value?.nickname || '',
-      avatarUrl: user.value?.avatar || ''
-    })
-
-    uni.hideLoading()
-
-    if (ok) {
-      auth.fetchProfile()
-      uni.showToast({ title: '绑定成功 🎉', icon: 'success' })
-    }
-  } catch (e) {
-    uni.hideLoading()
-    const msg = e?.message || e?.errMsg || '网络错误'
-    uni.showToast({ title: '一键登录失败: ' + msg, icon: 'none', duration: 3000 })
-  } finally {
-    phoneLogining.value = false
-  }
+function goLogin() {
+  uni.reLaunch({ url: '/pages/login/login' })
 }
 
 async function testConnection() {
@@ -225,6 +155,7 @@ function fmt(d) {
 .actions { display: flex; gap: 20rpx; }
 .action-btn { flex: 1; height: 80rpx; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; font-size: 30rpx; background: #007AFF; color: #fff; }
 .action-btn.secondary { background: #fff; color: #007AFF; border: 2rpx solid #007AFF; }
+.action-btn.danger { background: #fff; color: #FF3B30; border: 2rpx solid #FF3B30; }
 .stats { display: flex; text-align: center; padding: 32rpx; }
 .stat { flex: 1; }
 .num { display: block; font-size: 40rpx; font-weight: 600; margin-bottom: 8rpx; }
@@ -234,14 +165,6 @@ function fmt(d) {
 .row:last-child { border: none; }
 .l { color: #666; }
 .r { color: #333; }
-.quick-login-card { display: flex; flex-direction: column; gap: 24rpx; }
-.ql-header { display: flex; align-items: center; gap: 20rpx; }
-.ql-icon { font-size: 64rpx; }
-.ql-text { display: flex; flex-direction: column; gap: 4rpx; }
-.ql-title { font-size: 32rpx; font-weight: 600; color: #333; }
-.ql-desc { font-size: 24rpx; color: #999; }
-.ql-btn { height: 80rpx; background: #07C160; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; font-size: 30rpx; color: #fff; border: none; width: 100%; }
-.ql-btn[disabled] { opacity: 0.6; }
 .phone { font-size: 24rpx; color: #07C160; margin-top: 4rpx; display: block; }
 .debug-bar { padding: 20rpx; text-align: center; font-size: 24rpx; color: #999; }
 .debug-panel { background: #F5F5F5; border-radius: 12rpx; padding: 20rpx; display: flex; flex-direction: column; gap: 12rpx; font-size: 22rpx; color: #666; font-family: monospace; }

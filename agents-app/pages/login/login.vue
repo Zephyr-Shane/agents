@@ -24,21 +24,11 @@
         </view>
       </view>
 
-      <!-- 主按钮：手机号一键登录 -->
-      <button class="wechat-login-btn"
-        open-type="getPhoneNumber"
-        @getphonenumber="onGetPhoneNumber"
-        :disabled="loading"
-        :loading="loading">
-        <text class="btn-icon">📱</text>
-        <text class="btn-text">{{ loading ? '登录中...' : '微信手机号一键登录' }}</text>
-      </button>
-
-      <!-- 降级按钮：基础微信登录（手机号授权失败时显示 / 开发环境备用） -->
-      <button class="basic-login-btn" v-if="showBasicLogin"
-        @tap="handleBasicLogin"
+      <button class="login-btn"
+        @tap="handleLogin"
         :disabled="loading">
-        <text class="btn-text">使用微信快速登录</text>
+        <text class="btn-icon">💬</text>
+        <text class="btn-text">{{ loading ? '登录中...' : '微信快速登录' }}</text>
       </button>
 
       <view class="agreement">
@@ -50,13 +40,15 @@
     </view>
 
     <!-- 调试：开发者登录入口 -->
-    <view class="dev-login" v-if="showDevLogin" @tap.stop>
-      <view class="dev-title">开发者调试登录</view>
-      <input class="dev-input" v-model="devCode" placeholder="输入测试 code（可选）" />
-      <view class="dev-btn" @tap="handleDevLogin">发送 code 登录</view>
-    </view>
-    <view class="dev-toggle" @tap="showDevLogin = !showDevLogin">
-      <text>{{ showDevLogin ? '收起' : '开发者选项' }}</text>
+    <view class="dev-section">
+      <text class="dev-toggle" @tap="showDevLogin = !showDevLogin">
+        {{ showDevLogin ? '收起' : '开发者选项' }}
+      </text>
+      <view class="dev-login" v-if="showDevLogin" @tap.stop>
+        <view class="dev-title">开发者调试登录</view>
+        <input class="dev-input" v-model="devCode" placeholder="输入测试 code（可选）" />
+        <view class="dev-btn" @tap="handleDevLogin">发送 code 登录</view>
+      </view>
     </view>
   </view>
 </template>
@@ -68,7 +60,6 @@ import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const loading = ref(false)
-const showBasicLogin = ref(false)  // 手机号授权失败时显示降级按钮
 const showDevLogin = ref(false)
 const devCode = ref('')
 
@@ -87,73 +78,17 @@ watch(() => auth.ready, (ready) => {
 })
 
 /**
- * 微信手机号一键登录回调
- * 成功：走 phoneLogin（绑定手机号）
- * 失败：显示降级「使用微信快速登录」按钮
+ * 微信快速登录
+ * 使用 wx.login() → code → 后端静默登录
  */
-async function onGetPhoneNumber(e) {
-  // 用户拒绝授权或环境不支持 → 显示降级按钮
-  if (!e.detail || (e.detail.errMsg && e.detail.errMsg !== 'getPhoneNumber:ok')) {
-    showBasicLogin.value = true
-    uni.showToast({ title: '手机号授权不可用，请使用微信快速登录', icon: 'none', duration: 2000 })
-    return
-  }
-
-  if (loading.value) return
-  loading.value = true
-
-  try {
-    // 1. 获取 wx.login code
-    const loginCode = await getLoginCode()
-    if (!loginCode) {
-      return
-    }
-
-    // 2. 从 e.detail 获取 phoneCode
-    const phoneCode = e.detail.code
-    if (!phoneCode) {
-      uni.showToast({ title: '未获取到手机号凭证', icon: 'none', duration: 2000 })
-      showBasicLogin.value = true
-      return
-    }
-
-    uni.showLoading({ title: '登录中...' })
-
-    // 3. 发送到后端一键登录
-    const ok = await auth.phoneLogin({
-      loginCode,
-      phoneCode,
-      nickname: '',
-      avatarUrl: ''
-    })
-
-    uni.hideLoading()
-
-    if (ok) {
-      uni.showToast({ title: '欢迎回来 🎉', icon: 'success' })
-      setTimeout(() => redirectToHome(), 500)
-    }
-  } catch (e) {
-    uni.hideLoading()
-    const msg = e?.message || e?.errMsg || '网络错误'
-    uni.showToast({ title: '登录失败: ' + msg, icon: 'none', duration: 3000 })
-    showBasicLogin.value = true
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
- * 基础微信登录（降级方案）
- * 使用 wx.login() → code → 后端静默登录（不绑定手机号）
- */
-async function handleBasicLogin() {
+async function handleLogin() {
   if (loading.value) return
   loading.value = true
   uni.showLoading({ title: '登录中...' })
   try {
     const code = await getLoginCode()
     if (!code) {
+      uni.hideLoading()
       uni.showToast({ title: '获取登录凭证失败', icon: 'none' })
       return
     }
@@ -182,33 +117,30 @@ function getLoginCode() {
         if (res.code) resolve(res.code)
         else resolve(null)
       },
-      fail: (err) => {
+      fail: () => {
         // H5 环境 mock
-        if (err.errMsg && err.errMsg.includes('fail')) {
-          resolve('h5_mock_' + Date.now())
-        } else {
-          resolve(null)
-        }
+        resolve('h5_mock_' + Date.now())
       }
     })
   })
 }
 
 /**
- * 开发者登录（绕过手机号授权）
+ * 开发者登录（手动输入 code）
  */
 async function handleDevLogin() {
-  if (!devCode.value.trim()) {
+  const code = devCode.value.trim()
+  if (!code) {
     uni.showToast({ title: '请输入测试 code', icon: 'none' })
     return
   }
   loading.value = true
   uni.showLoading({ title: '登录中...' })
   try {
-    await auth.reLogin()
+    const ok = await auth.doLogin(code)
     uni.hideLoading()
-    if (auth.isLoggedIn) {
-      uni.showToast({ title: '开发者登录成功', icon: 'success' })
+    if (ok) {
+      uni.showToast({ title: '登录成功', icon: 'success' })
       setTimeout(() => redirectToHome(), 500)
     } else {
       uni.showToast({ title: '登录失败', icon: 'none' })
@@ -221,7 +153,7 @@ async function handleDevLogin() {
   }
 }
 
-/** 跳转到首页（对话 tab） */
+/** 跳转到首页 */
 function redirectToHome() {
   uni.switchTab({ url: '/pages/dialogue/dialogue' })
 }
@@ -265,13 +197,13 @@ function showPrivacy() {
   width: 160rpx;
   height: 160rpx;
   border-radius: 36rpx;
-  background: linear-gradient(135deg, #007AFF, #5856D6);
+  background: linear-gradient(135deg, #07C160, #06AD56);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 80rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 122, 255, 0.3);
+  box-shadow: 0 8rpx 32rpx rgba(7, 193, 96, 0.3);
 }
 .title {
   font-size: 44rpx;
@@ -311,8 +243,8 @@ function showPrivacy() {
   color: #555;
 }
 
-/* 微信登录按钮 */
-.wechat-login-btn {
+/* 微信快速登录按钮 */
+.login-btn {
   width: 100%;
   height: 96rpx;
   background: #07C160;
@@ -325,10 +257,10 @@ function showPrivacy() {
   margin: 0;
   box-shadow: 0 4rpx 16rpx rgba(7, 193, 96, 0.3);
 }
-.wechat-login-btn::after {
+.login-btn::after {
   border: none;
 }
-.wechat-login-btn[disabled] {
+.login-btn[disabled] {
   opacity: 0.7;
 }
 .btn-icon {
@@ -338,27 +270,6 @@ function showPrivacy() {
   font-size: 32rpx;
   font-weight: 600;
   color: #FFFFFF;
-}
-
-/* 基础登录降级按钮 */
-.basic-login-btn {
-  width: 100%;
-  height: 72rpx;
-  background: #FFFFFF;
-  border-radius: 36rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  border: 2rpx solid #DDD;
-  margin: 20rpx 0 0;
-}
-.basic-login-btn::after {
-  border: none;
-}
-.basic-login-btn .btn-text {
-  font-size: 28rpx;
-  color: #666;
 }
 
 /* 协议 */
@@ -379,12 +290,22 @@ function showPrivacy() {
 }
 
 /* ===== 开发者选项 ===== */
+.dev-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dev-toggle {
+  padding: 20rpx;
+  font-size: 22rpx;
+  color: #CCC;
+}
 .dev-login {
   width: 100%;
   padding: 32rpx;
   background: #fff;
   border-radius: 20rpx;
-  margin-top: 24rpx;
 }
 .dev-title {
   font-size: 26rpx;
@@ -400,7 +321,7 @@ function showPrivacy() {
   font-size: 26rpx;
   margin-bottom: 16rpx;
 }
-.dev-btn {
+.dev-btn-input {
   height: 64rpx;
   background: #007AFF;
   border-radius: 12rpx;
@@ -409,10 +330,5 @@ function showPrivacy() {
   justify-content: center;
   font-size: 26rpx;
   color: #fff;
-}
-.dev-toggle {
-  padding: 20rpx;
-  font-size: 22rpx;
-  color: #CCC;
 }
 </style>
