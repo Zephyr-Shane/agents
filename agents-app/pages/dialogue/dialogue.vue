@@ -80,6 +80,7 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useChatStore } from '@/stores/chat'
 import { useAgentStore } from '@/stores/agent'
 import { useAuthStore } from '@/stores/auth'

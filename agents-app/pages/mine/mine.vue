@@ -66,6 +66,7 @@
 
 <script setup>
 import { computed, watch, onMounted, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import { API_BASE_URL } from '@/config'
 

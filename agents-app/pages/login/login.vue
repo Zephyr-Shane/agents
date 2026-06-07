@@ -55,6 +55,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
