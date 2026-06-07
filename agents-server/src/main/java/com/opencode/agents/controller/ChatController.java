@@ -24,9 +24,10 @@ public class ChatController {
 
     @GetMapping("/conversations")
     public ResultVO<List<ConversationVO>> listConversations(
-            @RequestParam(required = false) Long agentId) {
+            @RequestParam(required = false) Long agentId,
+            @RequestParam(required = false) String type) {
         Long userId = UserContext.getUserId();
-        return ResultVO.success(conversationService.listConversations(userId, agentId));
+        return ResultVO.success(conversationService.listConversations(userId, agentId, type));
     }
 
     @PostMapping("/conversations")

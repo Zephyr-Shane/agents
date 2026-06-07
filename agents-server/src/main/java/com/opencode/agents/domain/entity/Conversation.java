@@ -14,6 +14,8 @@ public class Conversation {
 
     private Long userId;
     private Long agentId;
+    /** 会话类型: general-普通对话, agent-智能体对话 */
+    private String type;
     private String title;
 
     @TableLogic

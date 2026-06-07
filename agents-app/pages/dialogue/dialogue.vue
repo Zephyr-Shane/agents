@@ -1,13 +1,6 @@
 <template>
   <view class="dialogue">
-    <!-- 顶部子Tab切换 -->
-    <view class="sub-tabs">
-      <view class="sub-tab" :class="{ active: activeTab === 'chat' }" @tap="switchChat">普通对话</view>
-      <view class="sub-tab" :class="{ active: activeTab === 'create' }" @tap="activeTab='create'">创建智能体</view>
-    </view>
-
-    <!-- ===== 普通对话 ===== -->
-    <view class="chat-layout" v-if="activeTab === 'chat'">
+    <view class="chat-layout">
       <!-- ======== 左侧：会话列表 ======== -->
       <view class="left-panel">
         <AgentSelector :agents="agentStore.agents" :currentAgentId="agentStore.currentAgentId"
@@ -36,7 +29,6 @@
             <text class="conv-preview">{{ c.lastMessage || '暂无消息' }}</text>
           </view>
 
-          <!-- 空状态 -->
           <view v-if="filteredConversations.length === 0" class="conv-empty">
             <text>{{ searchTerm ? '未找到匹配的会话' : '暂无会话，开始新对话吧' }}</text>
           </view>
@@ -45,13 +37,11 @@
 
       <!-- ======== 右侧：聊天窗口 ======== -->
       <view class="right-panel">
-        <!-- 未选中会话 -->
         <view v-if="!chatStore.currentConvId" class="right-empty">
           <text style="font-size:80rpx">💬</text>
           <text style="font-size:28rpx;color:#999;margin-top:16rpx">选择一个会话或创建新对话</text>
         </view>
 
-        <!-- 已选中会话 -->
         <template v-else>
           <view class="conv-title-bar">
             <text class="ct-title">{{ currentConvTitle }}</text>
@@ -67,7 +57,6 @@
             <view id="bottom" />
           </scroll-view>
 
-          <!-- 文件预览 -->
           <view v-if="selectedFiles.length > 0" class="file-preview">
             <view v-for="(f, i) in selectedFiles" :key="i" class="file-item">
               <text class="file-icon">📎</text>
@@ -84,34 +73,6 @@
         </template>
       </view>
     </view>
-
-    <!-- ===== 创建智能体 ===== -->
-    <block v-if="activeTab === 'create'">
-      <view class="create-wrap">
-        <view class="create-header">
-          <text class="create-title">用自然语言描述你想要的智能体</text>
-          <text class="create-desc">例如：「创建一个PDF文档知识库助手，只能读取上传文件回答，禁止联网」</text>
-        </view>
-        <view class="create-input-area">
-          <textarea class="create-input" v-model="desc" placeholder="描述智能体的功能、风格、约束..." :disabled="creating" auto-height />
-        </view>
-        <view class="create-btn" :class="{ disabled: !desc.trim() || creating }" @tap="doCreate">{{ creating ? '创建中...' : '开始创建' }}</view>
-        <StepIndicator v-if="creating" :steps="steps" :currentStep="step" :loading="creating" />
-      </view>
-    </block>
-
-    <!-- 成功弹窗 -->
-    <view v-if="showSuccess" class="modal" @tap="showSuccess=false">
-      <view class="modal-box" @tap.stop>
-        <text style="font-size:64rpx">🎉</text>
-        <text class="modal-title">创建完成</text>
-        <text class="modal-desc">智能体「{{ createdName }}」已创建成功！</text>
-        <view class="modal-actions">
-          <view class="mbtn" @tap="useNow">立即使用</view>
-          <view class="mbtn primary" @tap="createAnother">继续创建</view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -121,29 +82,18 @@ import { onShow } from '@dcloudio/uni-app'
 import { useChatStore } from '@/stores/chat'
 import { useAgentStore } from '@/stores/agent'
 import { useAuthStore } from '@/stores/auth'
-import { createAgentFromNL } from '@/api/agent'
 import { API_BASE_URL } from '@/config'
 import AgentSelector from '@/components/AgentSelector.vue'
 import MessageBubble from '@/components/MessageBubble.vue'
-import StepIndicator from '@/components/StepIndicator.vue'
 
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 const agentStore = useAgentStore()
 
-const activeTab = ref('chat')
 const msg = ref('')
-const desc = ref('')
-const creating = ref(false)
-const step = ref(-1)
-const showSuccess = ref(false)
-const createdName = ref('')
-const steps = ['正在解析角色定位', '正在配置知识库能力', '正在配置联网权限', '智能体创建完成']
 const scrollId = ref('')
-// 文件上传相关
 const selectedFiles = ref([])
 const uploadingFile = ref(false)
-// 搜索
 const searchTerm = ref('')
 
 // 模糊搜索过滤后的会话列表
@@ -166,7 +116,11 @@ onMounted(() => {
   watch(() => authStore.ready, (val) => {
     if (val && authStore.isLoggedIn) {
       agentStore.loadAgents()
-      chatStore.loadConversations(agentStore.currentAgentId)
+      if (agentStore.currentAgentId) {
+        chatStore.loadConversations(agentStore.currentAgentId)
+      } else {
+        chatStore.loadGeneralConversations()
+      }
     }
   }, { immediate: true })
 })
@@ -176,17 +130,16 @@ onShow(() => {
   if (authStore.ready && !authStore.isLoggedIn) {
     uni.reLaunch({ url: '/pages/login/login' })
   }
+  // 每次显示页面时刷新数据
+  if (authStore.ready && authStore.isLoggedIn) {
+    agentStore.loadAgents()
+    if (agentStore.currentAgentId) {
+      chatStore.loadConversations(agentStore.currentAgentId)
+    }
+  }
 })
 
-// 切换回 chat 时自动加载会话列表
-function switchChat() {
-  activeTab.value = 'chat'
-  if (authStore.isLoggedIn) {
-    chatStore.loadConversations(agentStore.currentAgentId)
-  }
-}
-
-// 选中会话：加载消息 + 滚动到底部
+// 选中会话
 function selectConversation(convId) {
   chatStore.switchConversation(convId)
   scrollToBottom()
@@ -196,12 +149,8 @@ function selectConversation(convId) {
 watch(() => chatStore.messages.length, () => {
   setTimeout(scrollToBottom, 100)
 })
-
-// 流式内容更新时滚动
 watch(() => chatStore.streamingContent, () => {
-  if (chatStore.streaming) {
-    scrollToBottom()
-  }
+  if (chatStore.streaming) scrollToBottom()
 })
 
 function scrollToBottom() {
@@ -212,7 +161,11 @@ function onAgentSelect(agentId) {
   agentStore.selectAgent(agentId)
   chatStore.messages = []
   chatStore.currentConvId = null
-  chatStore.loadConversations(agentId)
+  if (agentId) {
+    chatStore.loadConversations(agentId)
+  } else {
+    chatStore.loadGeneralConversations()
+  }
   searchTerm.value = ''
 }
 
@@ -236,10 +189,7 @@ async function chooseFile() {
     return
   }
   try {
-    const res = await uni.chooseFile({
-      count: 5,
-      type: 'all'
-    })
+    const res = await uni.chooseFile({ count: 5, type: 'all' })
     const files = res.tempFiles || res.tempFilePaths.map(p => ({ path: p, name: p.split('/').pop() }))
     for (const file of files) {
       await uploadFile(file.path || file, file.name)
@@ -257,17 +207,11 @@ async function uploadFile(filePath, fileName) {
     const res = await new Promise((resolve, reject) => {
       uni.uploadFile({
         url: API_BASE_URL + '/knowledge/upload/' + agentStore.currentAgentId,
-        filePath: filePath,
+        filePath,
         name: 'file',
-        header: {
-          'Authorization': 'Bearer ' + (uni.getStorageSync('token') || '')
-        },
+        header: { 'Authorization': 'Bearer ' + (uni.getStorageSync('token') || '') },
         success: (r) => {
-          try {
-            resolve(JSON.parse(r.data))
-          } catch {
-            reject(new Error('上传返回解析失败'))
-          }
+          try { resolve(JSON.parse(r.data)) } catch { reject(new Error('解析失败')) }
         },
         fail: reject
       })
@@ -289,48 +233,10 @@ async function uploadFile(filePath, fileName) {
 function removeFile(index) {
   selectedFiles.value.splice(index, 1)
 }
-
-async function doCreate() {
-  if (!desc.value.trim() || creating.value) return
-  creating.value = true
-  step.value = 0
-  try {
-    const res = await createAgentFromNL(desc.value.trim())
-    if (res && res.code === 0 && res.data) {
-      createdName.value = res.data.name || '新智能体'
-      step.value = 4
-      agentStore.loadAgents()
-      showSuccess.value = true
-    } else {
-      uni.showToast({ title: '创建失败', icon: 'none' })
-    }
-  } catch (e) {
-    uni.showToast({ title: '创建失败: ' + e.message, icon: 'none' })
-  }
-  creating.value = false
-}
-
-function useNow() {
-  showSuccess.value = false
-  activeTab.value = 'chat'
-  if (agentStore.agents.length > 0) onAgentSelect(agentStore.agents[0].id)
-}
-
-function createAnother() {
-  showSuccess.value = false
-  desc.value = ''
-  step.value = -1
-}
 </script>
 
 <style scoped>
-.dialogue { display: flex; flex-direction: column; height: 100vh; }
-
-/* ===== 顶部子Tab ===== */
-.sub-tabs { display: flex; background: #fff; padding: 20rpx 0 0; position: sticky; top: 0; z-index: 10; flex-shrink: 0; }
-.sub-tab { flex: 1; text-align: center; font-size: 30rpx; color: #666; padding: 12rpx 0 20rpx; position: relative; }
-.sub-tab.active { color: #333; font-weight: 600; }
-.sub-tab.active::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 48rpx; height: 4rpx; background: #007AFF; border-radius: 2rpx; }
+.dialogue { display: flex; flex-direction: column; height: 100vh; background: #F8F8F8; }
 
 /* ===== 左右分栏 ===== */
 .chat-layout { display: flex; flex: 1; overflow: hidden; }
@@ -388,21 +294,4 @@ function createAnother() {
 .file-del { font-size: 20rpx; color: #999; padding: 4rpx; }
 .attach-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; font-size: 40rpx; flex-shrink: 0; }
 
-/* ===== 创建智能体 ===== */
-.create-wrap { padding: 32rpx; flex: 1; overflow-y: auto; }
-.create-title { font-size: 32rpx; font-weight: 600; display: block; margin-bottom: 12rpx; }
-.create-desc { font-size: 26rpx; color: #999; display: block; }
-.create-input-area { background: #fff; border-radius: 16rpx; padding: 24rpx; margin: 24rpx 0; }
-.create-input { width: 100%; min-height: 200rpx; font-size: 28rpx; }
-.create-btn { height: 88rpx; background: #007AFF; border-radius: 44rpx; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 32rpx; font-weight: 600; }
-.create-btn.disabled { background: #B0D4FF; }
-
-/* ===== 弹窗 ===== */
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal-box { background: #fff; border-radius: 24rpx; padding: 48rpx; width: 560rpx; display: flex; flex-direction: column; align-items: center; }
-.modal-title { font-size: 36rpx; font-weight: 600; margin: 16rpx 0 8rpx; }
-.modal-desc { font-size: 28rpx; color: #666; margin-bottom: 32rpx; text-align: center; }
-.modal-actions { display: flex; gap: 20rpx; width: 100%; }
-.mbtn { flex: 1; height: 72rpx; border-radius: 36rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; border: 1rpx solid #007AFF; color: #007AFF; }
-.mbtn.primary { background: #007AFF; color: #fff; border: none; }
 </style>

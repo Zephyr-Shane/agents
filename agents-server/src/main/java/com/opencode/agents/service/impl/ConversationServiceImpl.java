@@ -26,14 +26,25 @@ public class ConversationServiceImpl implements ConversationService {
     private final MessageMapper messageMapper;
 
     @Override
-    public List<ConversationVO> listConversations(Long userId, Long agentId) {
+    public List<ConversationVO> listConversations(Long userId, Long agentId, String type) {
         LambdaQueryWrapper<Conversation> wrapper = new LambdaQueryWrapper<Conversation>()
                 .eq(Conversation::getUserId, userId)
                 .eq(Conversation::getDeleted, 0)
                 .orderByDesc(Conversation::getUpdateTime);
 
         if (agentId != null) {
+            // 查询指定智能体的对话
             wrapper.eq(Conversation::getAgentId, agentId);
+            // 如果同时传了 type，追加过滤
+            if (type != null) {
+                wrapper.eq(Conversation::getType, type);
+            }
+        } else if ("general".equals(type)) {
+            // 显式查询普通对话
+            wrapper.isNull(Conversation::getAgentId)
+                   .eq(Conversation::getType, "general");
+        } else {
+            // 未指定任何条件：返回所有对话（兼容旧调用）
         }
 
         return conversationMapper.selectList(wrapper).stream()
@@ -46,8 +57,16 @@ public class ConversationServiceImpl implements ConversationService {
         Conversation conversation = new Conversation();
         conversation.setUserId(userId);
         conversation.setAgentId(request.getAgentId());
+
+        // 根据 agentId 自动推断 type
+        String type = request.getType();
+        if (type == null) {
+            type = request.getAgentId() != null ? "agent" : "general";
+        }
+        conversation.setType(type);
+
         conversation.setTitle(StrUtil.isNotBlank(request.getTitle())
-                ? request.getTitle() : "新的对话");
+                ? request.getTitle() : (type.equals("agent") ? "智能体对话" : "新的对话"));
         conversationMapper.insert(conversation);
         return toConversationVO(conversation);
     }
@@ -70,6 +89,7 @@ public class ConversationServiceImpl implements ConversationService {
         ConversationVO vo = new ConversationVO();
         vo.setId(c.getId());
         vo.setAgentId(c.getAgentId());
+        vo.setType(c.getType());
         vo.setTitle(c.getTitle());
         vo.setUpdateTime(c.getUpdateTime());
 

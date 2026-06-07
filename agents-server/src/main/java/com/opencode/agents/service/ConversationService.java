@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface ConversationService {
 
-    List<ConversationVO> listConversations(Long userId, Long agentId);
+    List<ConversationVO> listConversations(Long userId, Long agentId, String type);
 
     ConversationVO createConversation(Long userId, CreateConversationRequest request);
 

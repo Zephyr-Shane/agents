@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getConversations, createConversation, getMessages, streamChat } from '@/api/chat'
+import { getConversations, getGeneralConversations, createConversation, getMessages, streamChat } from '@/api/chat'
 
 export const useChatStore = defineStore('chat', () => {
   const conversations = ref([])
@@ -9,13 +9,25 @@ export const useChatStore = defineStore('chat', () => {
   const streaming = ref(false)
   const streamingContent = ref('')
 
+  /** 加载智能体对话列表（agentId 有值）或普通对话列表（agentId 为空） */
   async function loadConversations(agentId) {
-    const res = await getConversations(agentId)
+    if (agentId) {
+      const res = await getConversations(agentId)
+      if (res.code === 0) conversations.value = res.data
+    } else {
+      await loadGeneralConversations()
+    }
+  }
+
+  /** 加载普通对话列表（type=general） */
+  async function loadGeneralConversations() {
+    const res = await getGeneralConversations()
     if (res.code === 0) conversations.value = res.data
   }
 
   async function startNewConversation(agentId) {
-    const res = await createConversation({ agentId })
+    const data = agentId ? { agentId, type: 'agent' } : { type: 'general' }
+    const res = await createConversation(data)
     if (res.code === 0) {
       conversations.value.unshift(res.data)
       await switchConversation(res.data.id)
@@ -31,7 +43,8 @@ export const useChatStore = defineStore('chat', () => {
   async function sendMessage(agentId, text, fileIds) {
     let convId = currentConvId.value
     if (!convId) {
-      const res = await createConversation({ agentId })
+      const data = agentId ? { agentId, type: 'agent' } : { type: 'general' }
+      const res = await createConversation(data)
       if (res.code !== 0) return
       convId = res.data.id
       currentConvId.value = convId
@@ -55,7 +68,6 @@ export const useChatStore = defineStore('chat', () => {
       if (res.error) {
         streamingContent.value = '发送失败: ' + res.error
       }
-      // 如果是新创建的会话，更新 convId
       if (res.conversationId && res.conversationId !== convId) {
         currentConvId.value = res.conversationId
       }
@@ -73,6 +85,7 @@ export const useChatStore = defineStore('chat', () => {
 
   return {
     conversations, currentConvId, messages, streaming, streamingContent,
-    loadConversations, startNewConversation, switchConversation, sendMessage
+    loadConversations, loadGeneralConversations,
+    startNewConversation, switchConversation, sendMessage
   }
 })

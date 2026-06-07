@@ -77,12 +77,14 @@ CREATE TABLE IF NOT EXISTS `conversation` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '会话ID',
     `user_id`     BIGINT       NOT NULL COMMENT '用户ID',
     `agent_id`    BIGINT       NULL COMMENT '智能体ID(NULL=通用对话)',
+    `type`        VARCHAR(16)  NOT NULL DEFAULT 'general' COMMENT '会话类型 general-普通对话 agent-智能体对话',
     `title`       VARCHAR(128) NOT NULL DEFAULT '新的对话' COMMENT '会话标题',
     `deleted`     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
     `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_user_agent` (`user_id`, `agent_id`),
+    KEY `idx_type` (`type`),
     KEY `idx_update` (`update_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会话表';
 
@@ -111,3 +113,9 @@ CREATE TABLE IF NOT EXISTS `knowledge_doc` (
     PRIMARY KEY (`id`),
     KEY `idx_agent` (`agent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识库文档表';
+
+-- =============================================
+-- 升级脚本（如已在运行旧版 schema）
+-- =============================================
+-- ALTER TABLE `conversation` ADD COLUMN `type` VARCHAR(16) NOT NULL DEFAULT 'general' COMMENT '会话类型 general-普通对话 agent-智能体对话' AFTER `agent_id`;
+-- ALTER TABLE `conversation` ADD INDEX `idx_type` (`type`);

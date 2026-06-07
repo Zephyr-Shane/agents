@@ -2,8 +2,11 @@ import { get, post, postStream } from './request'
 import { extractChatResponse } from '@/utils/sse-parser'
 
 export function getConversations(agentId) {
-  const params = agentId != null ? '?agentId=' + agentId : ''
+  const params = agentId != null ? '?agentId=' + agentId : '?type=general'
   return get('/conversations' + params)
+}
+export function getGeneralConversations() {
+  return get('/conversations?type=general')
 }
 export function createConversation(data) { return post('/conversations', data) }
 export function getMessages(convId) { return get('/conversations/' + convId + '/messages') }
