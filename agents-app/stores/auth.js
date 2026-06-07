@@ -131,6 +131,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     token, user, ready, isLoggedIn, hasPhone,
-    init, autoLogin, reLogin, phoneLogin, fetchProfile, logout
+    init, autoLogin, doLogin, reLogin, phoneLogin, fetchProfile, logout
   }
 })

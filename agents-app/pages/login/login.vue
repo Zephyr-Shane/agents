@@ -24,13 +24,21 @@
         </view>
       </view>
 
+      <!-- 主按钮：手机号一键登录 -->
       <button class="wechat-login-btn"
         open-type="getPhoneNumber"
         @getphonenumber="onGetPhoneNumber"
         :disabled="loading"
         :loading="loading">
         <text class="btn-icon">📱</text>
-        <text class="btn-text">{{ loading ? '登录中...' : '微信一键登录' }}</text>
+        <text class="btn-text">{{ loading ? '登录中...' : '微信手机号一键登录' }}</text>
+      </button>
+
+      <!-- 降级按钮：基础微信登录（手机号授权失败时显示 / 开发环境备用） -->
+      <button class="basic-login-btn" v-if="showBasicLogin"
+        @tap="handleBasicLogin"
+        :disabled="loading">
+        <text class="btn-text">使用微信快速登录</text>
       </button>
 
       <view class="agreement">
@@ -41,11 +49,11 @@
       </view>
     </view>
 
-    <!-- 调试/备用：开发者登录入口 -->
+    <!-- 调试：开发者登录入口 -->
     <view class="dev-login" v-if="showDevLogin" @tap.stop>
-      <view class="dev-title">开发者登录</view>
-      <input class="dev-input" v-model="devCode" placeholder="输入测试 code" />
-      <view class="dev-btn" @tap="handleDevLogin">开发者登录</view>
+      <view class="dev-title">开发者调试登录</view>
+      <input class="dev-input" v-model="devCode" placeholder="输入测试 code（可选）" />
+      <view class="dev-btn" @tap="handleDevLogin">发送 code 登录</view>
     </view>
     <view class="dev-toggle" @tap="showDevLogin = !showDevLogin">
       <text>{{ showDevLogin ? '收起' : '开发者选项' }}</text>
@@ -60,6 +68,7 @@ import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const loading = ref(false)
+const showBasicLogin = ref(false)  // 手机号授权失败时显示降级按钮
 const showDevLogin = ref(false)
 const devCode = ref('')
 
@@ -79,11 +88,14 @@ watch(() => auth.ready, (ready) => {
 
 /**
  * 微信手机号一键登录回调
+ * 成功：走 phoneLogin（绑定手机号）
+ * 失败：显示降级「使用微信快速登录」按钮
  */
 async function onGetPhoneNumber(e) {
-  // 用户拒绝授权
-  if (e.detail.errMsg && e.detail.errMsg !== 'getPhoneNumber:ok') {
-    uni.showToast({ title: '需要授权手机号才能使用', icon: 'none', duration: 2000 })
+  // 用户拒绝授权或环境不支持 → 显示降级按钮
+  if (!e.detail || (e.detail.errMsg && e.detail.errMsg !== 'getPhoneNumber:ok')) {
+    showBasicLogin.value = true
+    uni.showToast({ title: '手机号授权不可用，请使用微信快速登录', icon: 'none', duration: 2000 })
     return
   }
 
@@ -100,7 +112,8 @@ async function onGetPhoneNumber(e) {
     // 2. 从 e.detail 获取 phoneCode
     const phoneCode = e.detail.code
     if (!phoneCode) {
-      uni.showToast({ title: '未获取到手机号凭证，请重试', icon: 'none', duration: 2000 })
+      uni.showToast({ title: '未获取到手机号凭证', icon: 'none', duration: 2000 })
+      showBasicLogin.value = true
       return
     }
 
@@ -118,14 +131,43 @@ async function onGetPhoneNumber(e) {
 
     if (ok) {
       uni.showToast({ title: '欢迎回来 🎉', icon: 'success' })
-      // 跳转到首页
       setTimeout(() => redirectToHome(), 500)
     }
   } catch (e) {
     uni.hideLoading()
     const msg = e?.message || e?.errMsg || '网络错误'
     uni.showToast({ title: '登录失败: ' + msg, icon: 'none', duration: 3000 })
+    showBasicLogin.value = true
   } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * 基础微信登录（降级方案）
+ * 使用 wx.login() → code → 后端静默登录（不绑定手机号）
+ */
+async function handleBasicLogin() {
+  if (loading.value) return
+  loading.value = true
+  uni.showLoading({ title: '登录中...' })
+  try {
+    const code = await getLoginCode()
+    if (!code) {
+      uni.showToast({ title: '获取登录凭证失败', icon: 'none' })
+      return
+    }
+    const ok = await auth.doLogin(code)
+    if (ok) {
+      uni.showToast({ title: '登录成功', icon: 'success' })
+      setTimeout(() => redirectToHome(), 500)
+    } else {
+      uni.showToast({ title: '登录失败，请检查后端服务', icon: 'none', duration: 3000 })
+    }
+  } catch (e) {
+    uni.showToast({ title: '登录失败: ' + (e.message || '未知'), icon: 'none', duration: 3000 })
+  } finally {
+    uni.hideLoading()
     loading.value = false
   }
 }
@@ -296,6 +338,27 @@ function showPrivacy() {
   font-size: 32rpx;
   font-weight: 600;
   color: #FFFFFF;
+}
+
+/* 基础登录降级按钮 */
+.basic-login-btn {
+  width: 100%;
+  height: 72rpx;
+  background: #FFFFFF;
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  border: 2rpx solid #DDD;
+  margin: 20rpx 0 0;
+}
+.basic-login-btn::after {
+  border: none;
+}
+.basic-login-btn .btn-text {
+  font-size: 28rpx;
+  color: #666;
 }
 
 /* 协议 */
