@@ -156,9 +156,51 @@ agents-server/
 
 ---
 
-## 五、明天继续的入口
+## 六、2026-06-07 进度
 
-1. **重启后端** → IDEA 中重启 `AgentsApplication`
-2. **配置 Ark API Key** → 在 `application-local.yml` 中填入真实 key
-3. **验证完整流程** → 登录 → 创建智能体 → 对话 → 文件上传 → 智能体管理
-4. **推进阶段二** → 分页 / 多用户mock / 模型配置化
+### 6.1 微信小程序手机号一键登录
+
+| 改动 | 文件 | 说明 |
+|------|------|------|
+| 🆕 `WechatApiService` | `manager/WechatApiService.java` | 封装 jscode2session、access_token 缓存、getuserphonenumber |
+| 🆕 `PhoneLoginRequest` | `domain/dto/PhoneLoginRequest.java` | 手机号登录 DTO（loginCode + phoneCode） |
+| ✏️ `AuthServiceImpl` | 重写 | 新增 `phoneLogin()` 方法，支持按 phone/openid 查找合并用户 |
+| 🆕 端点 | `POST /api/auth/phone-login` | 手机号一键登录 API |
+| ✏️ `UserProfileVO` | 增加 `phone` 字段 | 登录响应返回手机号 |
+| 🆕 登录页 | `pages/login/login.vue` | 全屏登录页，微信一键登录按钮 |
+| ✏️ auth store | `stores/auth.js` | 新增 `phoneLogin()` 方法 |
+| ✏️ mine page | `pages/mine/mine.vue` | 新增「微信一键登录」按钮 +「退出登录」功能 |
+
+### 6.2 登录流程优化（用户反馈后调整）
+
+| 改动 | 说明 |
+|------|------|
+| ❌ 移除手机号专属登录 | 开发者工具不支持 getPhoneNumber |
+| ✅ 统一为「微信快速登录」 | `wx.login()` → code → 后端静默登录 |
+| ✅ 退出登录 | 确认弹窗 → 清 token → 回登录页 |
+| ✅ 登录守卫 | 所有页面 onShow 检查，未登录跳转登录页 |
+
+### 6.3 页面布局重构
+
+| 改动 | 说明 |
+|------|------|
+| 🆕 左右分栏 | 对话页左侧 35% 会话列表 + 右侧 65% 聊天窗口 |
+| 🆕 会话模糊搜索 | 按标题实时筛选，大小写不敏感 |
+| 🆕 独立创建 Tab | `pages/create/create.vue` 作为底部导航第三个 Tab |
+| ✏️ `pages.json` | 新增「创建」Tab（对话 → 创建 → 我的） |
+
+### 6.4 数据库与后端逻辑
+
+| 改动 | 说明 |
+|------|------|
+| 🆕 `conversation.type` | `general`(普通) / `agent`(智能体) 区分会话类型 |
+| ✏️ `ConversationService` | 查询逻辑修复：普通对话查 `agent_id IS NULL`，智能体对话查 `agent_id = X` |
+| ✏️ `ChatController` | `GET /api/conversations` 新增 `type` 查询参数 |
+
+### 🔴 明天继续
+
+1. 执行 SQL 升级：`ALTER TABLE conversation ADD COLUMN type ...`
+2. 配置火山引擎 Ark API Key 让 AI 对话跑起来
+3. 重启后端验证完整流程
+4. 多智能体之间的对话管理优化
+
