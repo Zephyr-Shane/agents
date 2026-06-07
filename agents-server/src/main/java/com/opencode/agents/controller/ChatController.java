@@ -45,7 +45,7 @@ public class ChatController {
     public SseEmitter streamChat(@RequestBody ChatRequest request) {
         Long userId = UserContext.getUserId();
         return chatService.streamChat(userId, request.getConversationId(),
-                request.getAgentId(), request.getMessage());
+                request.getAgentId(), request.getMessage(), request.getFileIds());
     }
 
 }

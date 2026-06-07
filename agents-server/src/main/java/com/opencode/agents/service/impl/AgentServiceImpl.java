@@ -6,13 +6,16 @@ import com.opencode.agents.common.BusinessException;
 import com.opencode.agents.common.ErrorCode;
 import com.opencode.agents.domain.entity.Agent;
 import com.opencode.agents.domain.entity.AgentVersion;
+import com.opencode.agents.domain.entity.KnowledgeDoc;
 import com.opencode.agents.domain.entity.UserAgent;
 import com.opencode.agents.domain.vo.AgentDetailVO;
 import com.opencode.agents.domain.vo.AgentVO;
 import com.opencode.agents.manager.AgentPromptConstants;
 import com.opencode.agents.manager.AiManager;
+import com.opencode.agents.manager.FileStorageService;
 import com.opencode.agents.mapper.AgentMapper;
 import com.opencode.agents.mapper.AgentVersionMapper;
+import com.opencode.agents.mapper.KnowledgeDocMapper;
 import com.opencode.agents.mapper.UserAgentMapper;
 import com.opencode.agents.service.AgentService;
 import com.volcengine.ark.runtime.model.completion.chat.ChatMessage;
@@ -24,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -38,7 +43,9 @@ public class AgentServiceImpl implements AgentService {
     private final AgentMapper agentMapper;
     private final AgentVersionMapper agentVersionMapper;
     private final UserAgentMapper userAgentMapper;
+    private final KnowledgeDocMapper knowledgeDocMapper;
     private final AiManager aiManager;
+    private final FileStorageService fileStorageService;
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -74,16 +81,58 @@ public class AgentServiceImpl implements AgentService {
                     return;
                 }
 
-                // Step 2: 正在配置知识库能力
-                sendStep(emitter, 2, 4, "configuring", "正在配置知识库能力...");
+                // Step 2: 配置知识库能力
+                JSONObject features = config.getJSONObject("features");
+                boolean hasKnowledgeBase = features != null && features.getBool("knowledgeBase", false);
+                if (hasKnowledgeBase) {
+                    // 为智能体创建知识库目录
+                    String kbDir = "kb/" + userId + "/" + config.getStr("name", "agent");
+                    Files.createDirectories(
+                            Paths.get(fileStorageService.getFilePath("").getParent().toString(), kbDir)
+                    );
+                    // 写入一个占位的 readme 说明文件
+                    String readmeContent = "知识库目录 - " + config.getStr("name") + "\n"
+                            + "创建时间: " + LocalDateTime.now() + "\n"
+                            + "通过上方知识库管理上传文档，即可在对话中引用知识库内容。";
+                    Files.writeString(
+                            Paths.get(fileStorageService.getFilePath("").getParent().toString(), kbDir, "README.md"),
+                            readmeContent
+                    );
+                    log.info("创建知识库目录: agent={}, dir={}", config.getStr("name"), kbDir);
+                }
+                sendStep(emitter, 2, 4, "configuring", hasKnowledgeBase
+                        ? "知识库能力已配置" : "未检测到知识库需求，已跳过");
 
-                // Step 3: 正在配置联网权限
-                sendStep(emitter, 3, 4, "permissions", "正在配置联网权限...");
+                // Step 3: 配置联网搜索等权限
+                boolean hasWebSearch = features != null && features.getBool("webSearch", false);
+                boolean hasCodeInterpreter = features != null && features.getBool("codeInterpreter", false);
+                boolean hasFileUpload = features != null && features.getBool("fileUpload", false);
+
+                StringBuilder permMsg = new StringBuilder("权限配置完成");
+                if (hasWebSearch) permMsg.append(" [联网搜索]");
+                if (hasCodeInterpreter) permMsg.append(" [代码执行]");
+                if (hasFileUpload) permMsg.append(" [文件上传]");
+                if (!hasWebSearch && !hasCodeInterpreter && !hasFileUpload) {
+                    permMsg.append("（基础权限）");
+                }
+
+                // 把权限信息更新到 featuresJson 中
+                if (features != null) {
+                    features.set("knowledgeBase", hasKnowledgeBase);
+                    features.set("webSearch", hasWebSearch);
+                    features.set("codeInterpreter", hasCodeInterpreter);
+                    features.set("fileUpload", hasFileUpload);
+                }
+
+                sendStep(emitter, 3, 4, "permissions", permMsg.toString());
 
                 // 保存到数据库
                 Agent agent = saveAgent(userId, config);
 
-                // Step 4: 完成
+                // Step 4: 完成 - 发送明确的完成事件
+                sendSseEvent(emitter, "{\"type\":\"completed\",\"agentId\":" + agent.getId()
+                        + ",\"name\":\"" + agent.getName()
+                        + "\",\"message\":\"智能体创建完成\"}");
                 sendStepWithData(emitter, 4, 4, "completed", "智能体创建完成", agent.getId());
 
                 emitter.complete();
@@ -163,6 +212,9 @@ public class AgentServiceImpl implements AgentService {
                 agent.setCurrentVersion(newVersion);
                 agentMapper.updateById(agent);
 
+                sendSseEvent(emitter, "{\"type\":\"completed\",\"agentId\":" + agentId
+                        + ",\"name\":\"" + agent.getName()
+                        + "\",\"message\":\"智能体更新完成\"}");
                 sendStepWithData(emitter, 1, 1, "completed", "智能体更新完成", agentId);
                 emitter.complete();
 

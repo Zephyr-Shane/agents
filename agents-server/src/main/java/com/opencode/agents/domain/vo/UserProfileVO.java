@@ -11,6 +11,8 @@ public class UserProfileVO {
     private String nickname;
     private String avatar;
     private String uid;
+    /** 手机号（手机号登录后才有值） */
+    private String phone;
     private LocalDateTime registerTime;
     private Integer agentCount;
 

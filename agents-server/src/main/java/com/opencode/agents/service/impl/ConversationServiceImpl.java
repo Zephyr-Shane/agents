@@ -32,9 +32,7 @@ public class ConversationServiceImpl implements ConversationService {
                 .eq(Conversation::getDeleted, 0)
                 .orderByDesc(Conversation::getUpdateTime);
 
-        if (agentId == null) {
-            wrapper.isNull(Conversation::getAgentId);
-        } else {
+        if (agentId != null) {
             wrapper.eq(Conversation::getAgentId, agentId);
         }
 

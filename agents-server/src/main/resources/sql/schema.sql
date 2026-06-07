@@ -8,7 +8,9 @@ USE agents;
 -- 用户表
 CREATE TABLE IF NOT EXISTS `user` (
     `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '用户ID',
-    `openid`        VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '微信openid',
+    `openid`        VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '微信openid（唯一标识）',
+    `unionid`       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '微信unionid（跨平台）',
+    `session_key`   VARCHAR(128) NOT NULL DEFAULT '' COMMENT '微信session_key（会话密钥）',
     `nickname`      VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '昵称',
     `avatar`        VARCHAR(512) NOT NULL DEFAULT '' COMMENT '头像URL',
     `phone`         VARCHAR(20)  NOT NULL DEFAULT '' COMMENT '手机号',
@@ -18,8 +20,9 @@ CREATE TABLE IF NOT EXISTS `user` (
     `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_openid` (`openid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+    UNIQUE KEY `uk_openid` (`openid`),
+    KEY `idx_unionid` (`unionid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表（微信小程序用户）';
 
 -- 智能体表
 CREATE TABLE IF NOT EXISTS `agent` (

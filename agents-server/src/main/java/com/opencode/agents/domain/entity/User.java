@@ -13,6 +13,8 @@ public class User {
     private Long id;
 
     private String openid;
+    private String unionid;
+    private String sessionKey;
     private String nickname;
     private String avatar;
     private String phone;

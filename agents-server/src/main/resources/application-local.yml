@@ -6,9 +6,9 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/agents?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/agents?useUnicode=true&characterEncoding=utf8&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
     username: root           # TODO: 替换为实际数据库用户名
-    password: root           # TODO: 替换为实际数据库密码
+    password: 12345678       # TODO: 替换为实际数据库密码
     type: com.zaxxer.hikari.HikariDataSource
 
   data:
@@ -22,10 +22,17 @@ spring:
 # 火山引擎豆包 Ark SDK 配置
 volcengine:
   ark-api-key: AK_ID_YOUR_API_KEY_HERE    # TODO: 替换为实际的 Ark API Key
-  ark-base-url: "https://ark.cn-beijing.volces.com/api/v3"  # API 基础地址
+  ark-base-url: "https://ark.cn-beijing.volces.com/api/v3"
   timeout: 120
   connect-timeout: 20
   retry-times: 2
+
+# 微信小程序配置
+wechat:
+  miniapp:
+    app-id: wx12751c57e3949d54             # TODO: 替换为微信小程序 AppID
+    app-secret: f977137263249593b243599080004d18        # TODO: 替换为微信小程序 AppSecret
+    login-url: "https://api.weixin.qq.com/sns/jscode2session"
 
 # JWT 配置
 jwt:

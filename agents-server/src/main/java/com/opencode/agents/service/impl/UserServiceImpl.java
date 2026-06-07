@@ -35,6 +35,7 @@ public class UserServiceImpl implements UserService {
         vo.setNickname(user.getNickname());
         vo.setAvatar(user.getAvatar());
         vo.setUid("UID_" + user.getId());
+        vo.setPhone(user.getPhone());
         vo.setRegisterTime(user.getRegisterTime());
         vo.setAgentCount((int) agentCount);
         return vo;

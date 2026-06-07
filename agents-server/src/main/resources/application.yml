@@ -2,15 +2,8 @@ server:
   port: 8080
 
 spring:
-  application:
-    name: agents-server
   profiles:
     active: local
-
-  servlet:
-    multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
 
   jackson:
     serialization:
@@ -18,6 +11,12 @@ spring:
     deserialization:
       read-date-timestamps-as-nanoseconds: false
     time-zone: GMT+8
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 60MB
 
 mybatis-plus:
   global-config:
@@ -34,3 +33,8 @@ mybatis-plus:
 
 knife4j:
   enable: true
+
+logging:
+  level:
+    com.opencode.agents: DEBUG
+    org.springframework.web: DEBUG

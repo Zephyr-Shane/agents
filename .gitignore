@@ -3,3 +3,11 @@ dist/
 unpackage/
 *.log
 .DS_Store
+
+# IDE
+.idea/
+*.iml
+
+# Build output
+agents-server/target/
+agents-server/out/

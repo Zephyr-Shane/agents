@@ -2,6 +2,7 @@ package com.opencode.agents.controller;
 
 import com.opencode.agents.common.UserContext;
 import com.opencode.agents.domain.dto.LoginRequest;
+import com.opencode.agents.domain.dto.PhoneLoginRequest;
 import com.opencode.agents.domain.vo.LoginResponse;
 import com.opencode.agents.domain.vo.ResultVO;
 import com.opencode.agents.domain.vo.UserProfileVO;
@@ -21,6 +22,17 @@ public class AuthController {
     @PostMapping("/login")
     public ResultVO<LoginResponse> login(@RequestBody LoginRequest request) {
         return ResultVO.success(authService.login(request));
+    }
+
+    /**
+     * 微信小程序手机号一键登录
+     * 前端需要先调用 wx.login() 获取 loginCode，
+     * 再通过 button[open-type="getPhoneNumber"] 获取 phoneCode，
+     * 后端通过这两个 code 换取用户手机号并完成登录/注册
+     */
+    @PostMapping("/phone-login")
+    public ResultVO<LoginResponse> phoneLogin(@RequestBody PhoneLoginRequest request) {
+        return ResultVO.success(authService.phoneLogin(request));
     }
 
     @GetMapping("/profile")
