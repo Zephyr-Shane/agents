@@ -10,8 +10,11 @@ public class AgentDetailVO {
     private Long id;
     private String name;
     private String description;
+    private String introduction;
+    private String openingLine;
     private String avatar;
     private Integer currentVersion;
+    private Integer isPublic;
     private String systemPrompt;
     private String featuresJson;
     private LocalDateTime createTime;

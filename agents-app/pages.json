@@ -9,6 +9,14 @@
       }
     },
     {
+      "path": "pages/register/register",
+      "style": {
+        "navigationBarTitleText": "注册",
+        "enablePullDownRefresh": false,
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/dialogue/dialogue",
       "style": {
         "navigationBarTitleText": "对话",
@@ -28,6 +36,13 @@
         "navigationBarTitleText": "我的",
         "enablePullDownRefresh": false
       }
+    },
+    {
+      "path": "pages/chat/chat",
+      "style": {
+        "navigationBarTitleText": "对话",
+        "enablePullDownRefresh": false
+      }
     }
   ],
   "globalStyle": {
@@ -38,8 +53,8 @@
   },
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#333333",
-    "borderStyle": "black",
+    "selectedColor": "#667EEA",
+    "borderStyle": "white",
     "backgroundColor": "#FFFFFF",
     "list": [
       {

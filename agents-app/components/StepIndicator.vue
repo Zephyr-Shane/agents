@@ -16,12 +16,13 @@ defineProps({
 </script>
 
 <style scoped>
-.steps { padding: 24rpx 32rpx; background: #fff; border-radius: 16rpx; margin: 16rpx 32rpx; }
-.step { display: flex; align-items: center; padding: 16rpx 0; opacity: 0.5; }
+.steps { padding: 24rpx 32rpx; background: #fff; border-radius: 20rpx; margin: 16rpx 24rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03); }
+.step { display: flex; align-items: center; padding: 16rpx 0; opacity: 0.4; }
 .step.active { opacity: 1; }
-.step.done { opacity: 0.8; }
-.dot { width: 40rpx; height: 40rpx; border-radius: 50%; background: #E5E5E5; display: flex; align-items: center; justify-content: center; font-size: 22rpx; color: #999; margin-right: 20rpx; flex-shrink: 0; }
-.step.active .dot { background: #007AFF; color: #fff; }
-.step.done .dot { background: #34C759; color: #fff; }
-.label { font-size: 28rpx; color: #333; }
+.step.done { opacity: 0.7; }
+.dot { width: 40rpx; height: 40rpx; border-radius: 50%; background: #E5E5E5; display: flex; align-items: center; justify-content: center; font-size: 22rpx; color: #999; margin-right: 20rpx; flex-shrink: 0; transition: all 0.3s; }
+.step.active .dot { background: linear-gradient(135deg, #667EEA, #764BA2); color: #fff; }
+.step.done .dot { background: linear-gradient(135deg, #667EEA, #764BA2); color: #fff; opacity: 0.8; }
+.label { font-size: 28rpx; color: #333; font-weight: 500; }
+.step.active .label { color: #1A1A1A; }
 </style>

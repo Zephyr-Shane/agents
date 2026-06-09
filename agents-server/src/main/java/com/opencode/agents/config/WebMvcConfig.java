@@ -15,8 +15,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private final JwtUtil jwtUtil;
 
     private static final List<String> EXCLUDE_PATHS = List.of(
-            "/api/auth/login",
+            "/api/auth/password-login",
+            "/api/auth/register",
             "/api/health",
+            "/api/files/**",
             "/doc.html",
             "/swagger-resources",
             "/v3/api-docs",

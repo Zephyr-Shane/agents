@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getConversations, getGeneralConversations, createConversation, getMessages, streamChat } from '@/api/chat'
+import { getConversations, getGeneralConversations, createConversation, getMessages, streamChat, streamChatChunked } from '@/api/chat'
 
 export const useChatStore = defineStore('chat', () => {
   const conversations = ref([])
@@ -35,7 +35,16 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function switchConversation(convId) {
+    messages.value = []
     currentConvId.value = convId
+    const res = await getMessages(convId)
+    if (res.code === 0) messages.value = res.data
+  }
+
+  /** 重新加载当前对话的消息（保留已有内容直到接口返回，避免闪白） */
+  async function refreshMessages() {
+    const convId = currentConvId.value
+    if (!convId) return
     const res = await getMessages(convId)
     if (res.code === 0) messages.value = res.data
   }
@@ -47,6 +56,7 @@ export const useChatStore = defineStore('chat', () => {
       const res = await createConversation(data)
       if (res.code !== 0) return
       convId = res.data.id
+      messages.value = []
       currentConvId.value = convId
       conversations.value.unshift(res.data)
     }
@@ -56,36 +66,50 @@ export const useChatStore = defineStore('chat', () => {
     streamingContent.value = ''
 
     try {
-      const res = await streamChat({
-        conversationId: convId,
-        agentId,
-        message: text,
-        fileIds: fileIds || []
-      })
-      if (res.content) {
-        streamingContent.value = res.content
+      let content, conversationId
+      try {
+        const result = await streamChatChunked({
+          conversationId: convId,
+          agentId,
+          message: text,
+          fileIds: fileIds || []
+        }, (token) => {
+          streamingContent.value += token
+        })
+        content = result.content
+        conversationId = result.conversationId
+      } catch (chunkErr) {
+        console.warn('Chunked stream unavailable, falling back to regular SSE:', chunkErr.message)
+        const result = await streamChat({
+          conversationId: convId,
+          agentId,
+          message: text,
+          fileIds: fileIds || []
+        })
+        content = result.content
+        conversationId = result.conversationId
       }
-      if (res.error) {
-        streamingContent.value = '发送失败: ' + res.error
+
+      streaming.value = false
+      streamingContent.value = ''
+
+      if (conversationId && conversationId !== convId) {
+        currentConvId.value = conversationId
       }
-      if (res.conversationId && res.conversationId !== convId) {
-        currentConvId.value = res.conversationId
+
+      if (content) {
+        messages.value.push({ id: Date.now() + 1, role: 'assistant', content })
       }
     } catch (e) {
-      streamingContent.value = '发送失败，请重试'
+      streaming.value = false
+      streamingContent.value = '发送失败: ' + (e.message || '请重试')
       console.error('chat sendMessage error:', e)
     }
-
-    if (streamingContent.value) {
-      messages.value.push({ id: Date.now() + 1, role: 'assistant', content: streamingContent.value })
-    }
-    streaming.value = false
-    streamingContent.value = ''
   }
 
   return {
     conversations, currentConvId, messages, streaming, streamingContent,
     loadConversations, loadGeneralConversations,
-    startNewConversation, switchConversation, sendMessage
+    startNewConversation, switchConversation, sendMessage, refreshMessages
   }
 })

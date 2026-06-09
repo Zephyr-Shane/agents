@@ -1,5 +1,5 @@
 <template>
-  <text class="streaming-text">{{ displayText }}<text v-if="streaming" class="cursor">|</text></text>
+  <text class="streaming-text">{{ displayText }}</text>
 </template>
 
 <script setup>
@@ -65,6 +65,4 @@ onUnmounted(stopTimer)
 
 <style scoped>
 .streaming-text { word-break: break-word; white-space: pre-wrap; }
-.cursor { animation: blink 1s steps(1) infinite; }
-@keyframes blink { 50% { opacity: 0; } }
 </style>

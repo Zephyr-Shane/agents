@@ -15,7 +15,10 @@ const navTitle = ref('AI智能体')
 onMounted(async () => {
   const auth = useAuthStore()
   auth.init()
-  await auth.autoLogin()
+  const ok = await auth.checkLogin()
+  if (!ok) {
+    uni.redirectTo({ url: '/pages/login/login' })
+  }
 })
 </script>
 

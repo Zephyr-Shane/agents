@@ -19,20 +19,16 @@ spring:
       database: 0
       timeout: 5000ms
 
-# 火山引擎豆包 Ark SDK 配置
-volcengine:
-  ark-api-key: AK_ID_YOUR_API_KEY_HERE    # TODO: 替换为实际的 Ark API Key
-  ark-base-url: "https://ark.cn-beijing.volces.com/api/v3"
-  timeout: 120
-  connect-timeout: 20
-  retry-times: 2
-
-# 微信小程序配置
-wechat:
-  miniapp:
-    app-id: wx12751c57e3949d54             # TODO: 替换为微信小程序 AppID
-    app-secret: f977137263249593b243599080004d18        # TODO: 替换为微信小程序 AppSecret
-    login-url: "https://api.weixin.qq.com/sns/jscode2session"
+  ai:
+    openai:
+      api-key: api-key    # TODO: 替换为实际的 Ark API Key
+      base-url: "https://ark.cn-beijing.volces.com/api"
+      chat:
+        options:
+          model: deepseek-v4-flash-260425
+          temperature: 0.6
+          max-tokens: 4096
+          top-p: 0.8
 
 # JWT 配置
 jwt:

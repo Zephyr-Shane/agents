@@ -1,13 +1,25 @@
-import { get, post, del, postStream } from './request'
+import { get, post, put, del, postStream } from './request'
 import { parseSSEText } from '@/utils/sse-parser'
 
 export function getMyAgents() { return get('/agents') }
 export function getAgentDetail(id) { return get('/agents/' + id) }
 
 /**
- * 自然语言创建智能体
- * 后端使用 SSE 流式返回步骤事件，前端解析后获取最终结果
- * 返回 Promise<{ code, data: { id, name }, message }>
+ * 结构化创建智能体（手动表单）
+ */
+export function createAgent(data) {
+  return post('/agents', data)
+}
+
+/**
+ * 更新智能体设置
+ */
+export function updateAgent(id, data) {
+  return put('/agents/' + id, data)
+}
+
+/**
+ * 自然语言创建智能体（SSE 流式）
  */
 export async function createAgentFromNL(desc) {
   try {

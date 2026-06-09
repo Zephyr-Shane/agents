@@ -204,3 +204,62 @@ agents-server/
 3. 重启后端验证完整流程
 4. 多智能体之间的对话管理优化
 
+---
+
+## 七、2026-06-08 进度
+
+### 7.1 登录功能完善
+
+| 改动 | 文件 | 说明 |
+|------|------|------|
+| ✏️ `LoginRequest.java` | 新增 `nickname`、`avatarUrl` 可选字段 |
+| ✏️ `AuthServiceImpl.login()` | 接收昵称/头像时同步更新 user 表 |
+| ✏️ `login.vue` | **重构登录流程**：先 wx.login() → 静默登录成功 → 弹窗询问是否使用微信头像/昵称 → 新按钮手势触发 getUserProfile → 更新到后端 |
+| ✏️ `api/auth.js` | 登录 API 支持传 nickname/avatarUrl |
+| ✏️ `stores/auth.js` | `doLogin()` 支持传 nickname/avatarUrl |
+| ✏️ `api/request.js` | 改进错误处理：`fail` 回调将 `errMsg` 转为有意义的 `Error.message` |
+| 🔧 修复 | 解决「登录失败：未知」—— 原因为 getUserProfile 手势链断裂 + 错误对象属性名不匹配 |
+
+### 7.2 对话页布局改造
+
+| 改动 | 说明 |
+|------|------|
+| ❌ 取消左右分栏 | dialogue.vue 改为纯对话列表页（全屏） |
+| 🆕 `pages/chat/chat.vue` | 新增聊天详情页（消息列表 + 输入区 + 文件上传） |
+| 🆕 `pages.json` | 新增 chat 页面路由 |
+| ✏️ 导航 | 点击会话 → `uni.navigateTo('/pages/chat/chat?conversationId=X')` |
+| ✏️ FAB 按钮 | 底部居中悬浮绿色「＋」按钮，创建新对话并导航到聊天页 |
+
+### 7.3 创建智能体页面改造
+
+| 改动 | 说明 |
+|------|------|
+| ❌ 取消顶部 Tab | 不再有「我的智能体 / 创建智能体」切换 |
+| ✏️ 纯列表 | 默认显示自己创建的智能体列表（含空状态） |
+| ✏️ FAB 按钮 | 底部「＋」按钮，点击弹出创建表单浮层 |
+| 🆕 创建表单 | 名称、功能描述（必填）、公开/私有开关、高级设定（介绍、开场白） |
+| ✏️ 后端 | `POST /api/agents` + `PUT /api/agents/{id}` 端点保留，实现为 TODO 伪代码 |
+| ✏️ `CreateAgentRequest` / `UpdateAgentRequest` | 结构化字段（name, agentDescription, introduction, openingLine, isPublic） |
+
+### 7.4 我的页面优化
+
+| 改动 | 说明 |
+|------|------|
+| ✏️ `mine.vue` | 参考豆包布局优化，用户头像支持微信头像（`user.avatar`），显示统计（智能体数 / 对话数 / 存储），操作列表（刷新信息 / 账号信息 / 退出登录） |
+
+### 7.5 数据库
+
+```sql
+ALTER TABLE agent 
+  ADD COLUMN introduction TEXT COMMENT '智能体介绍' AFTER description,
+  ADD COLUMN opening_line VARCHAR(500) DEFAULT '' COMMENT '开场白' AFTER introduction;
+```
+
+### 🔴 明天继续
+
+1. **后端创建/更新智能体真正实现** — 当前为伪代码（throw BusinessException），需补充完整逻辑
+2. **配置火山引擎 Ark API Key** — `application-local.yml` 中的 `ark-api-key` 仍为占位值
+3. **重启后端应用** — 确保所有 Java 变更生效
+4. **微信开发者工具构建验证** — 构建小程序验证完整流程
+5. **对话标题 AI 自动生成** / **前端骨架屏** / **错误重试** 等体验优化
+

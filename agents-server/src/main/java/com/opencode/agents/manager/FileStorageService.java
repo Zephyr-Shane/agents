@@ -35,15 +35,36 @@ public class FileStorageService {
     }
 
     /**
+     * 存储头像文件
+     */
+    public String storeAvatar(Long userId, MultipartFile file) {
+        String extension = getExtension(file.getOriginalFilename());
+        String filename = UUID.randomUUID().toString() + extension;
+        String relativePath = "avatars/" + userId + "/" + filename;
+        try {
+            Path targetPath = Paths.get(uploadDir, relativePath);
+            Files.createDirectories(targetPath.getParent());
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            log.info("头像存储成功: {}", targetPath);
+            return relativePath;
+        } catch (IOException e) {
+            log.error("头像存储失败: {}", file.getOriginalFilename(), e);
+            throw new RuntimeException("头像上传失败: " + e.getMessage());
+        }
+    }
+
+    private String getExtension(String filename) {
+        if (filename != null && filename.contains(".")) {
+            return filename.substring(filename.lastIndexOf("."));
+        }
+        return "";
+    }
+
+    /**
      * 存储文件，返回存储后的文件路径（相对路径）
      */
     public String storeFile(MultipartFile file, Long agentId) {
-        String originalFilename = file.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-        // 生成唯一文件名: agentId/uuid.扩展名
+        String extension = getExtension(file.getOriginalFilename());
         String filename = UUID.randomUUID().toString() + extension;
         String relativePath = agentId + "/" + filename;
 
@@ -54,7 +75,7 @@ public class FileStorageService {
             log.info("文件存储成功: {}", targetPath);
             return relativePath;
         } catch (IOException e) {
-            log.error("文件存储失败: {}", originalFilename, e);
+            log.error("文件存储失败: {}", file.getOriginalFilename(), e);
             throw new RuntimeException("文件上传失败: " + e.getMessage());
         }
     }

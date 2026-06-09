@@ -12,9 +12,8 @@ public class User {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private String openid;
-    private String unionid;
-    private String sessionKey;
+    private String username;
+    private String password;
     private String nickname;
     private String avatar;
     private String phone;

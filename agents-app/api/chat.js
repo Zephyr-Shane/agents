@@ -1,4 +1,4 @@
-import { get, post, postStream } from './request'
+import { get, post, postStream, postStreamChunked } from './request'
 import { extractChatResponse } from '@/utils/sse-parser'
 
 export function getConversations(agentId) {
@@ -23,4 +23,11 @@ export async function streamChat(data) {
     throw new Error(result.error)
   }
   return result
+}
+
+/**
+ * 流式聊天 —— onToken 逐字回调，返回 Promise<{ content, conversationId }>
+ */
+export function streamChatChunked(data, onToken) {
+  return postStreamChunked('/chat/stream', data, onToken)
 }

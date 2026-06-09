@@ -19,11 +19,23 @@
 
     <properties>
         <java.version>17</java.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
         <mybatis-plus.version>3.5.12</mybatis-plus.version>
-        <volcengine-ark.version>0.2.17</volcengine-ark.version>
         <hutool.version>5.8.36</hutool.version>
         <knife4j.version>4.4.0</knife4j.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Spring Boot -->
@@ -67,12 +79,12 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
-        <!-- AI SDK - 火山引擎豆包 Ark SDK -->
+        <!-- Spring AI - OpenAI 兼容(对接火山引擎豆包) -->
         <dependency>
-            <groupId>com.volcengine</groupId>
-            <artifactId>volcengine-java-sdk-ark-runtime</artifactId>
-            <version>${volcengine-ark.version}</version>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
         </dependency>
+
 
         <!-- Utilities -->
         <dependency>

@@ -11,3 +11,5 @@ unpackage/
 # Build output
 agents-server/target/
 agents-server/out/
+agents-server/DEV_LOG.md
+agents-server/src/main/resources/application-local.yml

@@ -4,6 +4,8 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.opencode.agents.common.BusinessException;
 import com.opencode.agents.common.ErrorCode;
+import com.opencode.agents.domain.dto.CreateAgentRequest;
+import com.opencode.agents.domain.dto.UpdateAgentRequest;
 import com.opencode.agents.domain.entity.Agent;
 import com.opencode.agents.domain.entity.AgentVersion;
 import com.opencode.agents.domain.entity.KnowledgeDoc;
@@ -18,10 +20,11 @@ import com.opencode.agents.mapper.AgentVersionMapper;
 import com.opencode.agents.mapper.KnowledgeDocMapper;
 import com.opencode.agents.mapper.UserAgentMapper;
 import com.opencode.agents.service.AgentService;
-import com.volcengine.ark.runtime.model.completion.chat.ChatMessage;
-import com.volcengine.ark.runtime.model.completion.chat.ChatMessageRole;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -55,42 +58,35 @@ public class AgentServiceImpl implements AgentService {
 
         executor.execute(() -> {
             try {
-                // Step 1: 正在解析角色定位
                 sendStep(emitter, 1, 4, "analyzing", "正在解析角色定位...");
 
-                // 调用 LLM 解析自然语言
-                ChatMessage systemMsg = ChatMessage.builder()
-                        .role(ChatMessageRole.SYSTEM)
-                        .content(AgentPromptConstants.NL_AGENT_CREATOR_SYSTEM_PROMPT)
-                        .build();
-                ChatMessage userMsg = ChatMessage.builder()
-                        .role(ChatMessageRole.USER)
-                        .content(description)
-                        .build();
+                List<Message> messages = List.of(
+                        new SystemMessage(AgentPromptConstants.NL_AGENT_CREATOR_SYSTEM_PROMPT),
+                        new UserMessage(description)
+                );
 
-                String llmResult = aiManager.syncChat(List.of(systemMsg, userMsg));
+                var chatResponse = aiManager.syncChat(messages);
+                String llmResult = chatResponse != null && chatResponse.getResult() != null
+                        && chatResponse.getResult().getOutput() != null
+                        ? chatResponse.getResult().getOutput().getText() : null;
                 if (llmResult == null) {
                     sendError(emitter, "AI解析失败，请重试");
                     return;
                 }
 
-                // 解析 JSON
                 JSONObject config = parseAgentConfig(llmResult);
                 if (config == null) {
                     sendError(emitter, "配置解析失败，请调整描述后重试");
                     return;
                 }
 
-                // Step 2: 配置知识库能力
                 JSONObject features = config.getJSONObject("features");
                 boolean hasKnowledgeBase = features != null && features.getBool("knowledgeBase", false);
                 if (hasKnowledgeBase) {
-                    // 为智能体创建知识库目录
                     String kbDir = "kb/" + userId + "/" + config.getStr("name", "agent");
                     Files.createDirectories(
                             Paths.get(fileStorageService.getFilePath("").getParent().toString(), kbDir)
                     );
-                    // 写入一个占位的 readme 说明文件
                     String readmeContent = "知识库目录 - " + config.getStr("name") + "\n"
                             + "创建时间: " + LocalDateTime.now() + "\n"
                             + "通过上方知识库管理上传文档，即可在对话中引用知识库内容。";
@@ -103,7 +99,6 @@ public class AgentServiceImpl implements AgentService {
                 sendStep(emitter, 2, 4, "configuring", hasKnowledgeBase
                         ? "知识库能力已配置" : "未检测到知识库需求，已跳过");
 
-                // Step 3: 配置联网搜索等权限
                 boolean hasWebSearch = features != null && features.getBool("webSearch", false);
                 boolean hasCodeInterpreter = features != null && features.getBool("codeInterpreter", false);
                 boolean hasFileUpload = features != null && features.getBool("fileUpload", false);
@@ -116,7 +111,6 @@ public class AgentServiceImpl implements AgentService {
                     permMsg.append("（基础权限）");
                 }
 
-                // 把权限信息更新到 featuresJson 中
                 if (features != null) {
                     features.set("knowledgeBase", hasKnowledgeBase);
                     features.set("webSearch", hasWebSearch);
@@ -126,10 +120,8 @@ public class AgentServiceImpl implements AgentService {
 
                 sendStep(emitter, 3, 4, "permissions", permMsg.toString());
 
-                // 保存到数据库
                 Agent agent = saveAgent(userId, config);
 
-                // Step 4: 完成 - 发送明确的完成事件
                 sendSseEvent(emitter, "{\"type\":\"completed\",\"agentId\":" + agent.getId()
                         + ",\"name\":\"" + agent.getName()
                         + "\",\"message\":\"智能体创建完成\"}");
@@ -158,7 +150,6 @@ public class AgentServiceImpl implements AgentService {
                     return;
                 }
 
-                // 获取当前版本配置
                 AgentVersion currentVersion = agentVersionMapper.selectOne(
                         new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AgentVersion>()
                                 .eq(AgentVersion::getAgentId, agentId)
@@ -171,16 +162,15 @@ public class AgentServiceImpl implements AgentService {
                         .replace("{currentConfig}", currentConfigJson)
                         .replace("{userRequest}", description);
 
-                ChatMessage systemMsg = ChatMessage.builder()
-                        .role(ChatMessageRole.SYSTEM)
-                        .content(updatePrompt)
-                        .build();
-                ChatMessage userMsg = ChatMessage.builder()
-                        .role(ChatMessageRole.USER)
-                        .content(description)
-                        .build();
+                List<Message> messages = List.of(
+                        new SystemMessage(updatePrompt),
+                        new UserMessage(description)
+                );
 
-                String llmResult = aiManager.syncChat(List.of(systemMsg, userMsg));
+                var chatResponse = aiManager.syncChat(messages);
+                String llmResult = chatResponse != null && chatResponse.getResult() != null
+                        && chatResponse.getResult().getOutput() != null
+                        ? chatResponse.getResult().getOutput().getText() : null;
                 if (llmResult == null) {
                     sendError(emitter, "AI解析失败");
                     return;
@@ -192,7 +182,6 @@ public class AgentServiceImpl implements AgentService {
                     return;
                 }
 
-                // 创建新版本
                 int newVersion = agent.getCurrentVersion() + 1;
                 String changeLog = config.getStr("changeLog", "自然语言修改");
 
@@ -206,7 +195,6 @@ public class AgentServiceImpl implements AgentService {
                 version.setCreatedBy(userId);
                 agentVersionMapper.insert(version);
 
-                // 更新 agent 当前版本
                 agent.setName(config.getStr("name"));
                 agent.setDescription(config.getStr("description"));
                 agent.setCurrentVersion(newVersion);
@@ -225,6 +213,18 @@ public class AgentServiceImpl implements AgentService {
         });
 
         return emitter;
+    }
+
+    @Override
+    @Transactional
+    public AgentVO createAgent(Long userId, CreateAgentRequest request) {
+        throw new BusinessException(ErrorCode.BUSINESS_ERROR, "创建功能开发中，请使用自然语言创建");
+    }
+
+    @Override
+    @Transactional
+    public AgentVO updateAgent(Long agentId, Long userId, UpdateAgentRequest request) {
+        throw new BusinessException(ErrorCode.BUSINESS_ERROR, "更新功能开发中，请稍后再试");
     }
 
     @Override
@@ -254,8 +254,11 @@ public class AgentServiceImpl implements AgentService {
         vo.setId(agent.getId());
         vo.setName(agent.getName());
         vo.setDescription(agent.getDescription());
+        vo.setIntroduction(agent.getIntroduction());
+        vo.setOpeningLine(agent.getOpeningLine());
         vo.setAvatar(agent.getAvatar());
         vo.setCurrentVersion(agent.getCurrentVersion());
+        vo.setIsPublic(agent.getIsPublic());
         vo.setSystemPrompt(version != null ? version.getSystemPrompt() : "");
         vo.setFeaturesJson(version != null ? version.getFeaturesJson() : "{}");
         vo.setCreateTime(agent.getCreateTime());
@@ -278,6 +281,8 @@ public class AgentServiceImpl implements AgentService {
         agent.setCreatorId(userId);
         agent.setName(config.getStr("name"));
         agent.setDescription(config.getStr("description"));
+        agent.setIntroduction(config.getStr("introduction", ""));
+        agent.setOpeningLine(config.getStr("openingLine", ""));
         agent.setAvatar("");
         agent.setCurrentVersion(1);
         agent.setStatus(1);
@@ -309,7 +314,6 @@ public class AgentServiceImpl implements AgentService {
 
     private JSONObject parseAgentConfig(String llmOutput) {
         try {
-            // 清理可能的 markdown 代码块标记
             String cleaned = llmOutput
                     .replace("```json", "")
                     .replace("```", "")
@@ -338,9 +342,7 @@ public class AgentServiceImpl implements AgentService {
 
     private void sendError(SseEmitter emitter, String message) {
         sendSseEvent(emitter, "{\"type\":\"error\",\"content\":\"" + message + "\"}");
-        try {
-            emitter.complete();
-        } catch (Exception ignored) {}
+        try { emitter.complete(); } catch (Exception ignored) {}
     }
 
     private void sendSseEvent(SseEmitter emitter, String data) {
@@ -356,7 +358,10 @@ public class AgentServiceImpl implements AgentService {
         vo.setId(agent.getId());
         vo.setName(agent.getName());
         vo.setDescription(agent.getDescription());
+        vo.setIntroduction(agent.getIntroduction());
+        vo.setOpeningLine(agent.getOpeningLine());
         vo.setAvatar(agent.getAvatar());
+        vo.setIsPublic(agent.getIsPublic());
         vo.setCreateTime(agent.getCreateTime());
         return vo;
     }

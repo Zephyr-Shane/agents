@@ -20,30 +20,63 @@ public class AgentController {
 
     private final AgentService agentService;
 
+    /**
+     * 获取我的智能体列表
+     */
     @GetMapping
     public ResultVO<List<AgentVO>> listMyAgents() {
         Long userId = UserContext.getUserId();
         return ResultVO.success(agentService.listMyAgents(userId));
     }
 
+    /**
+     * 获取智能体详情
+     */
     @GetMapping("/{id}")
     public ResultVO<AgentDetailVO> getAgentDetail(@PathVariable Long id) {
         Long userId = UserContext.getUserId();
         return ResultVO.success(agentService.getAgentDetail(id, userId));
     }
 
+    /**
+     * 自然语言创建智能体（SSE 流式）
+     */
     @PostMapping("/create-from-nl")
     public SseEmitter createFromNL(@RequestBody CreateAgentRequest request) {
         Long userId = UserContext.getUserId();
         return agentService.createFromNL(userId, request.getDescription());
     }
 
+    /**
+     * 结构化创建智能体（手动填写表单）
+     */
+    @PostMapping
+    public ResultVO<AgentVO> createAgent(@RequestBody CreateAgentRequest request) {
+        Long userId = UserContext.getUserId();
+        return ResultVO.success(agentService.createAgent(userId, request));
+    }
+
+    /**
+     * 更新智能体设置
+     */
+    @PutMapping("/{id}")
+    public ResultVO<AgentVO> updateAgent(@PathVariable Long id, @RequestBody UpdateAgentRequest request) {
+        Long userId = UserContext.getUserId();
+        return ResultVO.success(agentService.updateAgent(id, userId, request));
+    }
+
+    /**
+     * 自然语言更新智能体（SSE 流式）
+     */
     @PostMapping("/update-from-nl")
     public SseEmitter updateFromNL(@RequestBody UpdateAgentRequest request) {
         Long userId = UserContext.getUserId();
         return agentService.updateFromNL(userId, request.getAgentId(), request.getDescription());
     }
 
+    /**
+     * 删除智能体
+     */
     @DeleteMapping("/{id}")
     public ResultVO<Void> deleteAgent(@PathVariable Long id) {
         Long userId = UserContext.getUserId();
