@@ -81,3 +81,6 @@ export async function updateAgentFromNL(agentId, desc) {
 }
 
 export function deleteAgent(id) { return del('/agents/' + id) }
+
+/** 回滚智能体到上一版本 */
+export function rollbackAgent(id) { return post('/agents/' + id + '/rollback', {}) }

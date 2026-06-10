@@ -8,6 +8,9 @@ export function getConversations(agentId) {
 export function getGeneralConversations() {
   return get('/conversations?type=general')
 }
+export function getAllConversations() {
+  return get('/conversations')
+}
 export function createConversation(data) { return post('/conversations', data) }
 export function getMessages(convId) { return get('/conversations/' + convId + '/messages') }
 

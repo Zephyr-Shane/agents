@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS `agent` (
     `creator_id`      BIGINT       NOT NULL COMMENT '创建者用户ID',
     `name`            VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '智能体名称',
     `description`     VARCHAR(256) NOT NULL DEFAULT '' COMMENT '一句话描述',
+    `introduction`    TEXT         NULL COMMENT '详细介绍',
+    `opening_line`    VARCHAR(512) NOT NULL DEFAULT '' COMMENT '开场白',
+    `type`            VARCHAR(20)  NOT NULL DEFAULT 'general' COMMENT '智能体类型 general-通用 super-超级',
     `avatar`          VARCHAR(512) NOT NULL DEFAULT '' COMMENT '头像URL',
     `current_version` INT          NOT NULL DEFAULT 1 COMMENT '当前版本号',
     `status`          TINYINT      NOT NULL DEFAULT 0 COMMENT '状态 0-草稿 1-已发布',
@@ -119,3 +122,7 @@ CREATE TABLE IF NOT EXISTS `knowledge_doc` (
 -- =============================================
 -- ALTER TABLE `conversation` ADD COLUMN `type` VARCHAR(16) NOT NULL DEFAULT 'general' COMMENT '会话类型 general-普通对话 agent-智能体对话' AFTER `agent_id`;
 -- ALTER TABLE `conversation` ADD INDEX `idx_type` (`type`);
+-- ALTER TABLE `agent` ADD COLUMN `introduction` TEXT NULL COMMENT '详细介绍' AFTER `description`;
+-- ALTER TABLE `agent` ADD COLUMN `opening_line` VARCHAR(512) NOT NULL DEFAULT '' COMMENT '开场白' AFTER `introduction`;
+-- ALTER TABLE `agent` ADD COLUMN `type` VARCHAR(20) NOT NULL DEFAULT 'general' COMMENT '智能体类型 general-通用 super-超级' AFTER `opening_line`;
+-- ALTER TABLE `agent_version` ADD COLUMN `rollback_source_version` INT NOT NULL DEFAULT 0 COMMENT '回滚来源版本号（0=正常创建）' AFTER `created_by`;

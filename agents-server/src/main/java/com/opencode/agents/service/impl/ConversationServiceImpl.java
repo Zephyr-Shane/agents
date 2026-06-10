@@ -5,10 +5,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.opencode.agents.common.BusinessException;
 import com.opencode.agents.common.ErrorCode;
 import com.opencode.agents.domain.dto.CreateConversationRequest;
+import com.opencode.agents.domain.entity.Agent;
 import com.opencode.agents.domain.entity.Conversation;
 import com.opencode.agents.domain.entity.Message;
 import com.opencode.agents.domain.vo.ConversationVO;
 import com.opencode.agents.domain.vo.MessageVO;
+import com.opencode.agents.mapper.AgentMapper;
 import com.opencode.agents.mapper.ConversationMapper;
 import com.opencode.agents.mapper.MessageMapper;
 import com.opencode.agents.service.ConversationService;
@@ -24,6 +26,7 @@ public class ConversationServiceImpl implements ConversationService {
 
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
+    private final AgentMapper agentMapper;
 
     @Override
     public List<ConversationVO> listConversations(Long userId, Long agentId, String type) {
@@ -65,8 +68,16 @@ public class ConversationServiceImpl implements ConversationService {
         }
         conversation.setType(type);
 
-        conversation.setTitle(StrUtil.isNotBlank(request.getTitle())
-                ? request.getTitle() : (type.equals("agent") ? "智能体对话" : "新的对话"));
+        String title = request.getTitle();
+        if (StrUtil.isBlank(title)) {
+            if ("agent".equals(type) && request.getAgentId() != null) {
+                Agent agent = agentMapper.selectById(request.getAgentId());
+                title = (agent != null && StrUtil.isNotBlank(agent.getName())) ? agent.getName() : "智能体对话";
+            } else {
+                title = "新的对话";
+            }
+        }
+        conversation.setTitle(title);
         conversationMapper.insert(conversation);
         return toConversationVO(conversation);
     }
@@ -78,11 +89,27 @@ public class ConversationServiceImpl implements ConversationService {
             throw new BusinessException(ErrorCode.CONVERSATION_NOT_FOUND);
         }
 
-        return messageMapper.selectList(
+        List<Message> messages = messageMapper.selectList(
                 new LambdaQueryWrapper<Message>()
                         .eq(Message::getConversationId, conversationId)
                         .orderByAsc(Message::getCreateTime)
-        ).stream().map(this::toMessageVO).collect(Collectors.toList());
+        );
+
+        // 智能体对话没有任何消息时，注入开场白
+        if (messages.isEmpty() && conversation.getAgentId() != null) {
+            Agent agent = agentMapper.selectById(conversation.getAgentId());
+            if (agent != null && StrUtil.isNotBlank(agent.getOpeningLine())) {
+                Message opening = new Message();
+                opening.setConversationId(conversationId);
+                opening.setRole("assistant");
+                opening.setContent(agent.getOpeningLine());
+                opening.setTokens(0);
+                messageMapper.insert(opening);
+                messages.add(opening);
+            }
+        }
+
+        return messages.stream().map(this::toMessageVO).collect(Collectors.toList());
     }
 
     private ConversationVO toConversationVO(Conversation c) {

@@ -13,6 +13,7 @@ public class AgentVO {
     private String introduction;
     private String openingLine;
     private String avatar;
+    private String type;
     private Integer isPublic;
     private LocalDateTime createTime;
 

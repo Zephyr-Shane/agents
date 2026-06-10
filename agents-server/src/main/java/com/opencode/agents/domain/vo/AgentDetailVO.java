@@ -14,6 +14,7 @@ public class AgentDetailVO {
     private String openingLine;
     private String avatar;
     private Integer currentVersion;
+    private String type;
     private Integer isPublic;
     private String systemPrompt;
     private String featuresJson;

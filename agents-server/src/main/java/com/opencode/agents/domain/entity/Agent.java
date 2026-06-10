@@ -20,6 +20,7 @@ public class Agent {
     private String avatar;
     private Integer currentVersion;
     private Integer status;
+    private String type;
     private Integer isPublic;
 
     @TableLogic

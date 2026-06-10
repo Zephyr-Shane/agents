@@ -87,6 +87,10 @@ public class FileStorageService {
         return Paths.get(uploadDir, relativePath);
     }
 
+    public String getUploadDir() {
+        return uploadDir;
+    }
+
     /**
      * 获取文件的访问URL（本地模式返回相对路径，生产环境返回完整URL）
      */

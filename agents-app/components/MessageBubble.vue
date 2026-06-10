@@ -5,9 +5,6 @@
       <text v-else>{{ role === 'assistant' ? '🤖' : '👤' }}</text>
     </view>
     <view class="bubble" v-if="role === 'user'">{{ content }}</view>
-    <view class="bubble" v-else-if="streaming">
-      <StreamingText :text="content" :streaming="true" :speed="20" />
-    </view>
     <view class="bubble" v-else>
       <rich-text :nodes="html" />
     </view>
@@ -16,7 +13,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import StreamingText from './StreamingText.vue'
 import { mdToHtml } from '@/utils/markdown'
 
 const props = defineProps({

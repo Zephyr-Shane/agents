@@ -75,6 +75,15 @@ public class AgentController {
     }
 
     /**
+     * 回滚智能体到上一版本（仅允许回滚一级，不可连续回滚）
+     */
+    @PostMapping("/{id}/rollback")
+    public ResultVO<AgentVO> rollbackAgent(@PathVariable Long id) {
+        Long userId = UserContext.getUserId();
+        return ResultVO.success(agentService.rollbackAgent(id, userId));
+    }
+
+    /**
      * 删除智能体
      */
     @DeleteMapping("/{id}")

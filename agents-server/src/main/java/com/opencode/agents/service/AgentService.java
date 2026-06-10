@@ -30,4 +30,9 @@ public interface AgentService {
 
     void deleteAgent(Long agentId, Long userId);
 
+    /**
+     * 回滚智能体到上一版本（仅允许回滚一级）
+     */
+    AgentVO rollbackAgent(Long agentId, Long userId);
+
 }

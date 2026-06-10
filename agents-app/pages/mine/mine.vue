@@ -3,7 +3,7 @@
     <!-- 用户资料卡片 -->
     <view class="profile-card">
       <view class="avatar-wrap" @tap="changeAvatar">
-        <image v-if="user?.avatar" class="avatar-img" :src="user.avatar" mode="aspectFill" />
+        <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill" />
         <view v-else class="avatar-text">{{ avatarText }}</view>
       </view>
       <view class="profile-info" @tap="editNickname">
@@ -67,10 +67,12 @@ import { onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { uploadAvatarApi, updateProfileApi } from '@/api/auth'
+import { resolveAvatarUrl } from '@/utils/url'
 
 const auth = useAuthStore()
 const chatStore = useChatStore()
 const user = computed(() => auth.user)
+const avatarUrl = computed(() => resolveAvatarUrl(user.value?.avatar || ''))
 const avatarText = computed(() => (user.value?.nickname || '?')[0])
 
 onMounted(() => {

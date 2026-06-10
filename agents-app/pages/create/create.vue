@@ -10,18 +10,22 @@
     <!-- 智能体列表 -->
     <scroll-view v-else class="agent-list" scroll-y>
       <view v-for="agent in agentStore.agents" :key="agent.id" class="agent-card">
-        <view class="card-avatar">{{ agent.name ? agent.name[0] : '?' }}</view>
-        <view class="card-body">
+        <view class="card-main" @tap="startChat(agent)">
+          <view class="card-avatar">{{ agent.name ? agent.name[0] : '?' }}</view>
+          <view class="card-body">
           <view class="card-top">
             <text class="card-name">{{ agent.name }}</text>
+            <text class="card-badge type-badge">{{ agent.type === 'super' ? '超级' : '通用' }}</text>
             <text class="card-badge" :class="{ public: agent.isPublic === 1, private: agent.isPublic !== 1 }">
               {{ agent.isPublic === 1 ? '公开' : '私有' }}
             </text>
           </view>
-          <text class="card-desc">{{ agent.description || '暂无描述' }}</text>
+          <text class="card-desc">{{ agent.introduction || agent.description || '暂无介绍' }}</text>
           <text class="card-time">{{ formatTime(agent.createTime) }}</text>
         </view>
+        </view>
         <view class="card-actions">
+          <view class="ca-btn" @tap.stop="rollbackAgent(agent)">↩️</view>
           <view class="ca-btn" @tap.stop="showEdit(agent)">✏️</view>
           <view class="ca-btn" @tap.stop="confirmDelete(agent.id)">🗑️</view>
         </view>
@@ -135,6 +139,7 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAgentStore } from '@/stores/agent'
 import { useAuthStore } from '@/stores/auth'
+import { createConversation } from '@/api/chat'
 
 const agentStore = useAgentStore()
 const authStore = useAuthStore()
@@ -143,6 +148,7 @@ const showCreateForm = ref(false)
 const showAdvanced = ref(false)
 const submitting = ref(false)
 const showSuccess = ref(false)
+const createdId = ref(null)
 const createdName = ref('')
 
 const form = reactive({
@@ -181,6 +187,7 @@ async function doCreate() {
       openingLine: form.openingLine.trim(),
       avatar: form.avatar, isPublic: form.isPublic
     })
+    createdId.value = agent.id
     createdName.value = agent.name || '新智能体'
     showSuccess.value = true
     showCreateForm.value = false
@@ -220,6 +227,15 @@ async function doUpdate() {
   }
 }
 
+async function rollbackAgent(agent) {
+  try {
+    await agentStore.rollbackAgent(agent.id)
+    uni.showToast({ title: '已回滚到上一版本', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: e.message || '回滚失败', icon: 'none' })
+  }
+}
+
 function confirmDelete(agentId) {
   uni.showModal({
     title: '提示',
@@ -233,9 +249,32 @@ function confirmDelete(agentId) {
   })
 }
 
-function goToChat() {
+async function startChat(agent) {
+  try {
+    const res = await createConversation({ agentId: agent.id, type: 'agent' })
+    if (res.code === 0 && res.data) {
+      uni.navigateTo({ url: '/pages/chat/chat?conversationId=' + res.data.id })
+    } else {
+      uni.showToast({ title: '进入对话失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: e.message || '进入对话失败', icon: 'none' })
+  }
+}
+
+async function goToChat() {
   showSuccess.value = false
-  uni.switchTab({ url: '/pages/dialogue/dialogue' })
+  if (!createdId.value) return
+  try {
+    const res = await createConversation({ agentId: createdId.value, type: 'agent' })
+    if (res.code === 0 && res.data) {
+      uni.navigateTo({ url: '/pages/chat/chat?conversationId=' + res.data.id })
+    } else {
+      uni.switchTab({ url: '/pages/dialogue/dialogue' })
+    }
+  } catch {
+    uni.switchTab({ url: '/pages/dialogue/dialogue' })
+  }
 }
 
 function formatTime(t) {
@@ -288,6 +327,7 @@ function formatTime(t) {
   gap: 20rpx;
   box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
 }
+.card-main { display: flex; align-items: flex-start; gap: 20rpx; flex: 1; min-width: 0; }
 .card-avatar {
   width: 80rpx; height: 80rpx; border-radius: 18rpx;
   background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
@@ -298,6 +338,7 @@ function formatTime(t) {
 .card-top { display: flex; align-items: center; gap: 12rpx; margin-bottom: 8rpx; }
 .card-name { font-size: 30rpx; font-weight: 600; color: #1A1A1A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
 .card-badge { font-size: 20rpx; padding: 4rpx 14rpx; border-radius: 20rpx; flex-shrink: 0; }
+.card-badge.type-badge { background: #E3F2FD; color: #1565C0; }
 .card-badge.public { background: #EDE7F6; color: #5E35B1; }
 .card-badge.private { background: #F5F5F5; color: #999; }
 .card-desc { font-size: 24rpx; color: #666; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4rpx; }

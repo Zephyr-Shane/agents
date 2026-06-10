@@ -135,9 +135,15 @@ public class ChatServiceImpl implements ChatService {
         }
 
         // 5. 构建 system prompt（含文件上下文）
+        if (agentId == null && conversation.getAgentId() != null) {
+            agentId = conversation.getAgentId();
+        }
         String systemPrompt = getSystemPrompt(agentId);
+        if (systemPrompt == null) {
+            systemPrompt = "你是一个智能AI助手，请用中文回答。";
+        }
         if (!fileContext.isEmpty()) {
-            systemPrompt = (systemPrompt != null ? systemPrompt + "\n\n" : "") + fileContext;
+            systemPrompt = systemPrompt + "\n\n" + fileContext;
         }
 
         // 6. 发起 SSE 流式响应（Spring AI 的 MessageChatMemoryAdvisor 自动管理多轮记忆）

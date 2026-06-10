@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getMyAgents, deleteAgent, createAgent as createAgentApi, updateAgent as updateAgentApi } from '@/api/agent'
+import { getMyAgents, deleteAgent, createAgent as createAgentApi, updateAgent as updateAgentApi, rollbackAgent as rollbackAgentApi } from '@/api/agent'
 
 export const useAgentStore = defineStore('agent', () => {
   const agents = ref([])
@@ -22,10 +22,10 @@ export const useAgentStore = defineStore('agent', () => {
 
   /**
    * 结构化创建智能体
-   * @param {Object} data - { name, agentDescription, introduction, openingLine, avatar, isPublic }
+   * @param {Object} data - { name, agentDescription, introduction, openingLine, avatar, isPublic, type }
    */
   async function createAgent(data) {
-    const res = await createAgentApi(data)
+    const res = await createAgentApi({ ...data, type: data.type || 'general' })
     if (res.code === 0) {
       agents.value.unshift(res.data)
       return res.data
@@ -46,8 +46,22 @@ export const useAgentStore = defineStore('agent', () => {
     throw new Error(res.message || '更新失败')
   }
 
+  /**
+   * 回滚智能体到上一版本（仅允许一级回滚）
+   */
+  async function rollbackAgent(agentId) {
+    const res = await rollbackAgentApi(agentId)
+    if (res.code === 0) {
+      const idx = agents.value.findIndex(a => a.id === agentId)
+      if (idx >= 0) agents.value[idx] = { ...agents.value[idx], ...res.data }
+      return res.data
+    }
+    throw new Error(res.message || '回滚失败')
+  }
+
   return {
     agents, currentAgentId, currentAgent,
-    loadAgents, selectAgent, removeAgent, createAgent, updateAgent
+    loadAgents, selectAgent, removeAgent, createAgent, updateAgent,
+    rollbackAgent
   }
 })

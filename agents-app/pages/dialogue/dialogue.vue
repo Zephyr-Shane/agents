@@ -83,7 +83,7 @@ function loadConvs() {
   if (agentStore.currentAgentId) {
     chatStore.loadConversations(agentStore.currentAgentId)
   } else {
-    chatStore.loadGeneralConversations()
+    chatStore.loadAllConversations()
   }
 }
 
@@ -150,24 +150,33 @@ function formatTime(t) {
 .conv-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 24rpx 160rpx;
+  padding: 0 0 160rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  margin: 0 24rpx;
 }
 .conv-count-label {
   font-size: 24rpx;
   color: #AAA;
-  padding: 20rpx 8rpx 12rpx;
+  padding: 20rpx 24rpx 12rpx;
+  line-height: 32rpx;
+  height: 64rpx;
+  box-sizing: border-box;
 }
 
 .conv-item {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  padding: 24rpx 20rpx;
+  padding: 20rpx 24rpx;
+  height: 128rpx;
+  min-height: 128rpx;
+  box-sizing: border-box;
   background: #fff;
-  border-radius: 20rpx;
-  margin-bottom: 12rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
+  margin-bottom: 0;
+  border-bottom: 2rpx solid #F5F5F5;
 }
+.conv-item:last-child { border-bottom: none; }
 .conv-icon {
   width: 80rpx;
   height: 80rpx;
@@ -183,26 +192,32 @@ function formatTime(t) {
 .conv-body {
   flex: 1;
   min-width: 0;
+  height: 88rpx;
 }
 .conv-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8rpx;
+  margin-bottom: 4rpx;
+  line-height: 40rpx;
 }
 .conv-name {
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 600;
   color: #1A1A1A;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 70%;
+  line-height: 40rpx;
+  height: 40rpx;
 }
 .conv-time {
   font-size: 22rpx;
   color: #BBB;
   flex-shrink: 0;
+  line-height: 40rpx;
+  height: 40rpx;
 }
 .conv-preview {
   font-size: 24rpx;
@@ -211,6 +226,8 @@ function formatTime(t) {
   text-overflow: ellipsis;
   white-space: nowrap;
   display: block;
+  line-height: 36rpx;
+  height: 36rpx;
 }
 .conv-empty {
   display: flex;

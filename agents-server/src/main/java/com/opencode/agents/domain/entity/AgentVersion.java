@@ -19,6 +19,8 @@ public class AgentVersion {
     private String description;
     private String changeLog;
     private Long createdBy;
+    /** 回滚来源版本号（0=正常创建，>0=从该版本回滚而来） */
+    private Integer rollbackSourceVersion;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

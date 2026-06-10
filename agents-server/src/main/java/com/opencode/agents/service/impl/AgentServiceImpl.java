@@ -218,13 +218,128 @@ public class AgentServiceImpl implements AgentService {
     @Override
     @Transactional
     public AgentVO createAgent(Long userId, CreateAgentRequest request) {
-        throw new BusinessException(ErrorCode.BUSINESS_ERROR, "创建功能开发中，请使用自然语言创建");
+        String name = request.getName();
+        String description = request.getAgentDescription();
+        if (name == null || name.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体名称不能为空");
+        }
+        if (description == null || description.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "功能描述不能为空");
+        }
+
+        String type = request.getType();
+        if (type == null || type.isBlank()) {
+            type = "general";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是一个AI智能体，请以设定的角色与用户对话。\n\n");
+        sb.append("## 智能体名称\n").append(name).append("\n\n");
+        sb.append("## 功能描述\n").append(description).append("\n\n");
+        if (request.getIntroduction() != null && !request.getIntroduction().isBlank()) {
+            sb.append("## 介绍\n").append(request.getIntroduction()).append("\n\n");
+        }
+        if (request.getOpeningLine() != null && !request.getOpeningLine().isBlank()) {
+            sb.append("## 开场白\n首次对话时，先发送开场白：").append(request.getOpeningLine()).append("\n\n");
+        }
+        String systemPrompt = sb.toString();
+
+        Agent agent = new Agent();
+        agent.setCreatorId(userId);
+        agent.setName(name);
+        agent.setDescription(description);
+        agent.setIntroduction(request.getIntroduction() != null ? request.getIntroduction() : "");
+        agent.setOpeningLine(request.getOpeningLine() != null ? request.getOpeningLine() : "");
+        agent.setType(type);
+        agent.setAvatar(request.getAvatar() != null ? request.getAvatar() : "");
+        agent.setCurrentVersion(1);
+        agent.setStatus(1);
+        agent.setIsPublic(request.getIsPublic() != null ? request.getIsPublic() : 0);
+        agentMapper.insert(agent);
+
+        AgentVersion version = new AgentVersion();
+        version.setAgentId(agent.getId());
+        version.setVersion(1);
+        version.setSystemPrompt(systemPrompt);
+        version.setFeaturesJson("{\"type\":\"" + type + "\"}");
+        version.setDescription(description);
+        version.setChangeLog("初始创建");
+        version.setCreatedBy(userId);
+        agentVersionMapper.insert(version);
+
+        UserAgent userAgent = new UserAgent();
+        userAgent.setUserId(userId);
+        userAgent.setAgentId(agent.getId());
+        userAgent.setIsCreator(1);
+        userAgent.setIsFavorite(0);
+        userAgent.setFirstUsedTime(LocalDateTime.now());
+        userAgent.setLastUsedTime(LocalDateTime.now());
+        userAgentMapper.insert(userAgent);
+
+        log.info("结构化创建智能体: userId={}, name={}, type={}", userId, name, type);
+        return toAgentVO(agent);
     }
 
     @Override
     @Transactional
     public AgentVO updateAgent(Long agentId, Long userId, UpdateAgentRequest request) {
-        throw new BusinessException(ErrorCode.BUSINESS_ERROR, "更新功能开发中，请稍后再试");
+        Agent agent = agentMapper.selectById(agentId);
+        if (agent == null || !agent.getCreatorId().equals(userId)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在或无权限修改");
+        }
+
+        boolean changed = false;
+        if (request.getName() != null && !request.getName().isBlank()) {
+            agent.setName(request.getName()); changed = true;
+        }
+        if (request.getAgentDescription() != null && !request.getAgentDescription().isBlank()) {
+            agent.setDescription(request.getAgentDescription()); changed = true;
+        }
+        if (request.getIntroduction() != null) {
+            agent.setIntroduction(request.getIntroduction()); changed = true;
+        }
+        if (request.getOpeningLine() != null) {
+            agent.setOpeningLine(request.getOpeningLine()); changed = true;
+        }
+        if (request.getAvatar() != null) {
+            agent.setAvatar(request.getAvatar()); changed = true;
+        }
+        if (request.getIsPublic() != null) {
+            agent.setIsPublic(request.getIsPublic()); changed = true;
+        }
+
+        if (!changed) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "没有要修改的内容");
+        }
+
+        int newVersion = agent.getCurrentVersion() + 1;
+        agent.setCurrentVersion(newVersion);
+        agentMapper.updateById(agent);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是一个AI智能体，请以设定的角色与用户对话。\n\n");
+        sb.append("## 智能体名称\n").append(agent.getName()).append("\n\n");
+        sb.append("## 功能描述\n").append(agent.getDescription()).append("\n\n");
+        if (agent.getIntroduction() != null && !agent.getIntroduction().isBlank()) {
+            sb.append("## 介绍\n").append(agent.getIntroduction()).append("\n\n");
+        }
+        if (agent.getOpeningLine() != null && !agent.getOpeningLine().isBlank()) {
+            sb.append("## 开场白\n首次对话时，先发送开场白：").append(agent.getOpeningLine()).append("\n\n");
+        }
+        String systemPrompt = sb.toString();
+
+        AgentVersion version = new AgentVersion();
+        version.setAgentId(agentId);
+        version.setVersion(newVersion);
+        version.setSystemPrompt(systemPrompt);
+        version.setFeaturesJson("{\"type\":\"" + agent.getType() + "\"}");
+        version.setDescription(agent.getDescription());
+        version.setChangeLog("手动更新");
+        version.setCreatedBy(userId);
+        agentVersionMapper.insert(version);
+
+        log.info("更新智能体: agentId={}, name={}, newVersion={}", agentId, agent.getName(), newVersion);
+        return toAgentVO(agent);
     }
 
     @Override
@@ -258,11 +373,65 @@ public class AgentServiceImpl implements AgentService {
         vo.setOpeningLine(agent.getOpeningLine());
         vo.setAvatar(agent.getAvatar());
         vo.setCurrentVersion(agent.getCurrentVersion());
+        vo.setType(agent.getType());
         vo.setIsPublic(agent.getIsPublic());
         vo.setSystemPrompt(version != null ? version.getSystemPrompt() : "");
         vo.setFeaturesJson(version != null ? version.getFeaturesJson() : "{}");
         vo.setCreateTime(agent.getCreateTime());
         return vo;
+    }
+
+    @Override
+    @Transactional
+    public AgentVO rollbackAgent(Long agentId, Long userId) {
+        Agent agent = agentMapper.selectById(agentId);
+        if (agent == null || !agent.getCreatorId().equals(userId)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在或无权限");
+        }
+
+        int currentVer = agent.getCurrentVersion();
+        if (currentVer <= 1) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "没有可回滚的版本");
+        }
+
+        AgentVersion currentVersion = agentVersionMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AgentVersion>()
+                        .eq(AgentVersion::getAgentId, agentId)
+                        .eq(AgentVersion::getVersion, currentVer)
+        );
+
+        if (currentVersion != null && currentVersion.getRollbackSourceVersion() != null
+                && currentVersion.getRollbackSourceVersion() > 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "当前版本已是回滚结果，不可连续回滚");
+        }
+
+        AgentVersion prevVersion = agentVersionMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AgentVersion>()
+                        .eq(AgentVersion::getAgentId, agentId)
+                        .eq(AgentVersion::getVersion, currentVer - 1)
+        );
+        if (prevVersion == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "上一版本不存在，无法回滚");
+        }
+
+        int newVersion = currentVer + 1;
+        AgentVersion rollbackVersion = new AgentVersion();
+        rollbackVersion.setAgentId(agentId);
+        rollbackVersion.setVersion(newVersion);
+        rollbackVersion.setSystemPrompt(prevVersion.getSystemPrompt());
+        rollbackVersion.setFeaturesJson(prevVersion.getFeaturesJson());
+        rollbackVersion.setDescription(prevVersion.getDescription());
+        rollbackVersion.setChangeLog("版本回滚 (v" + currentVer + " → v" + (currentVer - 1) + ")");
+        rollbackVersion.setCreatedBy(userId);
+        rollbackVersion.setRollbackSourceVersion(currentVer);
+        agentVersionMapper.insert(rollbackVersion);
+
+        agent.setCurrentVersion(newVersion);
+        agentMapper.updateById(agent);
+
+        log.info("智能体版本回滚: agentId={}, from=v{}, to=v{}, newVersion=v{}",
+                agentId, currentVer, currentVer - 1, newVersion);
+        return toAgentVO(agent);
     }
 
     @Override
@@ -283,6 +452,7 @@ public class AgentServiceImpl implements AgentService {
         agent.setDescription(config.getStr("description"));
         agent.setIntroduction(config.getStr("introduction", ""));
         agent.setOpeningLine(config.getStr("openingLine", ""));
+        agent.setType("general");
         agent.setAvatar("");
         agent.setCurrentVersion(1);
         agent.setStatus(1);
@@ -361,6 +531,7 @@ public class AgentServiceImpl implements AgentService {
         vo.setIntroduction(agent.getIntroduction());
         vo.setOpeningLine(agent.getOpeningLine());
         vo.setAvatar(agent.getAvatar());
+        vo.setType(agent.getType());
         vo.setIsPublic(agent.getIsPublic());
         vo.setCreateTime(agent.getCreateTime());
         return vo;

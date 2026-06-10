@@ -22,5 +22,7 @@ public class CreateAgentRequest {
     private String avatar;
     /** 是否公开（1=公开，0=私有） */
     private Integer isPublic;
+    /** 智能体类型 general-通用 super-超级，默认 general */
+    private String type;
 
 }
